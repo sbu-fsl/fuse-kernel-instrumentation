@@ -242,7 +242,6 @@ static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
 			goto out;
 		if (ret || (outarg.attr.mode ^ inode->i_mode) & S_IFMT)
 			goto invalid;
-//		printk("fuse dentry revalidate (before calling fuse_change_attributes)\n");
 		fuse_change_attributes(inode, &outarg.attr,
 				       entry_attr_timeout(&outarg),
 				       attr_version);
@@ -341,7 +340,6 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	struct dentry *newent;
 	bool outarg_valid = true;
 
-	printk("Fuse Lookup\n");
 	err = fuse_lookup_name(dir->i_sb, get_node_id(dir), &entry->d_name,
 			       &outarg, &inode);
 	if (err == -ENOENT) {
@@ -479,7 +477,6 @@ static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	struct dentry *res = NULL;
 
-	printk("FUSE Atomic Open\n");
 	if (d_unhashed(entry)) {
 		res = fuse_lookup(dir, entry, 0);
 		if (IS_ERR(res))
@@ -575,7 +572,6 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	FUSE_ARGS(args);
 
-	printk("FUSE mknod\n");
 	if (!fc->dont_mask)
 		mode &= ~current_umask();
 
@@ -595,7 +591,6 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 static int fuse_create(struct inode *dir, struct dentry *entry, umode_t mode,
 		       bool excl)
 {
-	printk("FUSE create\n");
 	return fuse_mknod(dir, entry, mode, 0);
 }
 
@@ -605,7 +600,6 @@ static int fuse_mkdir(struct inode *dir, struct dentry *entry, umode_t mode)
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	FUSE_ARGS(args);
 
-	printk("FUSE mkdir\n");
 	if (!fc->dont_mask)
 		mode &= ~current_umask();
 
@@ -628,7 +622,6 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 	unsigned len = strlen(link) + 1;
 	FUSE_ARGS(args);
 
-	printk("FUSE symlink\n");
 	args.in.h.opcode = FUSE_SYMLINK;
 	args.in.numargs = 2;
 	args.in.args[0].size = entry->d_name.len + 1;
@@ -652,7 +645,6 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	FUSE_ARGS(args);
 
-	printk("FUSE Unlink\n");
 	args.in.h.opcode = FUSE_UNLINK;
 	args.in.h.nodeid = get_node_id(dir);
 	args.in.numargs = 1;
@@ -689,7 +681,6 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	FUSE_ARGS(args);
 
-	printk("FUSE rmdir\n");
 	args.in.h.opcode = FUSE_RMDIR;
 	args.in.h.nodeid = get_node_id(dir);
 	args.in.numargs = 1;
@@ -768,7 +759,6 @@ static int fuse_rename2(struct inode *olddir, struct dentry *oldent,
 	struct fuse_conn *fc = get_fuse_conn(olddir);
 	int err;
 
-	printk("FUSE rename2\n");
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE))
 		return -EINVAL;
 
@@ -801,7 +791,6 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	FUSE_ARGS(args);
 
-	printk("Fuse link\n");
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.oldnodeid = get_node_id(inode);
 	args.in.h.opcode = FUSE_LINK;
@@ -906,11 +895,9 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 			make_bad_inode(inode);
 			err = -EIO;
 		} else {
-//			printk("Before Changing attributes i_time : %llu (%lu)\n", get_fuse_inode(inode)->i_time, inode->i_ino);
 			fuse_change_attributes(inode, &outarg.attr,
 					       attr_timeout(&outarg),
 					       attr_version);
-//			printk("After Changing attributes i_time : %llu (%lu)\n", get_fuse_inode(inode)->i_time, inode->i_ino);
 			if (stat)
 				fuse_fillattr(inode, &outarg.attr, stat);
 		}
@@ -925,10 +912,8 @@ int fuse_update_attributes(struct inode *inode, struct kstat *stat,
 	int err;
 	bool r;
 	
-//	printk("Fuse Update attributes i_time : %llu (%lu)\n", fi->i_time, inode->i_ino);
 	if (time_before64(fi->i_time, get_jiffies_64())) {
 		r = true;
-//		printk("Fuse Update attributes function (before calling fuse_do_getattr)\n");
 		err = fuse_do_getattr(inode, stat, file);
 	} else {
 		r = false;
@@ -1074,7 +1059,6 @@ static int fuse_perm_getattr(struct inode *inode, int mask)
 {
 	if (mask & MAY_NOT_BLOCK)
 		return -ECHILD;
-//	printk("Fuse Permission Getattr function (before calling fuse_do_getarr)\n");
 	return fuse_do_getattr(inode, NULL, NULL);
 }
 
@@ -1097,7 +1081,6 @@ static int fuse_permission(struct inode *inode, int mask)
 	bool refreshed = false;
 	int err = 0;
 
-	printk("FUSE Permission\n");
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
@@ -1110,7 +1093,6 @@ static int fuse_permission(struct inode *inode, int mask)
 
 		if (time_before64(fi->i_time, get_jiffies_64())) {
 			refreshed = true;			
-//			printk("Fuse Permission function (before calling fuse_perm_getattr)(1)\n");
 			err = fuse_perm_getattr(inode, mask);
 			if (err)
 				return err;
@@ -1123,8 +1105,7 @@ static int fuse_permission(struct inode *inode, int mask)
 		/* If permission is denied, try to refresh file
 		   attributes.  This is also needed, because the root
 		   node will at first have no permissions */
-		if (err == -EACCES && !refreshed) {	
-//			printk("Fuse Permission function (before calling fuse_perm_getattr)(2)\n");
+		if (err == -EACCES && !refreshed) {
 			err = fuse_perm_getattr(inode, mask);
 			if (!err)
 				err = generic_permission(inode, mask);
@@ -1141,7 +1122,6 @@ static int fuse_permission(struct inode *inode, int mask)
 			if (refreshed)
 				return -EACCES;
 
-//			printk("Fuse Permission function (before calling fuse_perm_getattr)(3)\n");
 			err = fuse_perm_getattr(inode, mask);
 			if (!err && !(inode->i_mode & S_IXUGO))
 				return -EACCES;
@@ -1336,7 +1316,6 @@ static int fuse_readdir(struct file *file, struct dir_context *ctx)
 	struct fuse_req *req;
 	u64 attr_version = 0;
 
-	printk("FUSE readdir\n");
 	if (is_bad_inode(inode))
 		return -EIO;
 
@@ -1431,13 +1410,11 @@ static void fuse_put_link(struct dentry *dentry, struct nameidata *nd, void *c)
 
 static int fuse_dir_open(struct inode *inode, struct file *file)
 {
-	printk("FUSE dir open\n");
 	return fuse_open_common(inode, file, true);
 }
 
 static int fuse_dir_release(struct inode *inode, struct file *file)
 {
-	printk("FUSE dir release\n");
 	fuse_release_common(file, FUSE_RELEASEDIR);
 	return 0;
 }
@@ -1445,7 +1422,6 @@ static int fuse_dir_release(struct inode *inode, struct file *file)
 static int fuse_dir_fsync(struct file *file, loff_t start, loff_t end,
 			  int datasync)
 {
-	printk("FUSE dir fsync\n");
 	return fuse_fsync_common(file, start, end, datasync, 1);
 }
 
@@ -1454,7 +1430,6 @@ static long fuse_dir_ioctl(struct file *file, unsigned int cmd,
 {
 	struct fuse_conn *fc = get_fuse_conn(file->f_mapping->host);
 
-	printk("FUSE dir ioctl\n");
 	/* FUSE_IOCTL_DIR only supported for API version >= 7.18 */
 	if (fc->minor < 18)
 		return -ENOTTY;
@@ -1467,7 +1442,6 @@ static long fuse_dir_compat_ioctl(struct file *file, unsigned int cmd,
 {
 	struct fuse_conn *fc = get_fuse_conn(file->f_mapping->host);
 
-	printk("FUSE dir compat ioctl\n");
 	if (fc->minor < 18)
 		return -ENOTTY;
 
@@ -1697,7 +1671,6 @@ int fuse_do_setattr(struct inode *inode, struct iattr *attr,
 			inode->i_ctime = attr->ia_ctime;
 		/* FIXME: clear I_DIRTY_SYNC? */
 	}
-//	printk("fuse_do_setattr (before calling fuse change attributes common)\n");
 	fuse_change_attributes_common(inode, &outarg.attr,
 				      attr_timeout(&outarg));
 	oldsize = inode->i_size;
@@ -1736,7 +1709,6 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(entry);
 
-	printk("FUSE setattr\n");
 	if (!fuse_allow_current_process(get_fuse_conn(inode)))
 		return -EACCES;
 
@@ -1752,10 +1724,8 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 	struct inode *inode = d_inode(entry);
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
-	printk("FUSE getattr\n");
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
-//	printk("Fuse Getattr function (before calling fuse_update_attributes) : %s\n", entry->d_iname);
 	return fuse_update_attributes(inode, stat, NULL, NULL);
 }
 
@@ -1768,7 +1738,6 @@ static int fuse_setxattr(struct dentry *entry, const char *name,
 	struct fuse_setxattr_in inarg;
 	int err;
 
-	printk("FUSE setxattr\n");
 	if (fc->no_setxattr)
 		return -EOPNOTSUPP;
 
@@ -1806,7 +1775,6 @@ static ssize_t fuse_getxattr(struct dentry *entry, const char *name,
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
 
-	printk("FUSE getxattr\n");
 	if (fc->no_getxattr)
 		return -EOPNOTSUPP;
 
@@ -1848,7 +1816,6 @@ static ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 	struct fuse_getxattr_out outarg;
 	ssize_t ret;
 
-	printk("FUSE listxattr\n");
 	if (!fuse_allow_current_process(fc))
 		return -EACCES;
 
@@ -1889,7 +1856,6 @@ static int fuse_removexattr(struct dentry *entry, const char *name)
 	FUSE_ARGS(args);
 	int err;
 
-	printk("FUSE removexattr\n");
 	if (fc->no_removexattr)
 		return -EOPNOTSUPP;
 

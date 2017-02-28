@@ -81,7 +81,6 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	struct inode *inode;
 	struct fuse_inode *fi;
 
-	printk("FUSE super alloc inode\n");
 	inode = kmem_cache_alloc(fuse_inode_cachep, GFP_KERNEL);
 	if (!inode)
 		return NULL;
@@ -116,7 +115,6 @@ static void fuse_i_callback(struct rcu_head *head)
 static void fuse_destroy_inode(struct inode *inode)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	printk("FUSE super destroy inode\n");
 	BUG_ON(!list_empty(&fi->write_files));
 	BUG_ON(!list_empty(&fi->queued_writes));
 	kfree(fi->forget);
@@ -125,7 +123,6 @@ static void fuse_destroy_inode(struct inode *inode)
 
 static void fuse_evict_inode(struct inode *inode)
 {
-	printk("FUSE super evict inode\n");
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 	if (inode->i_sb->s_flags & MS_ACTIVE) {
@@ -138,7 +135,6 @@ static void fuse_evict_inode(struct inode *inode)
 
 static int fuse_remount_fs(struct super_block *sb, int *flags, char *data)
 {
-	printk("FUSE super remount fs\n");
 	sync_filesystem(sb);
 	if (*flags & MS_MANDLOCK)
 		return -EINVAL;
@@ -165,12 +161,9 @@ void fuse_change_attributes_common(struct inode *inode, struct fuse_attr *attr,
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	fi->attr_version = ++fc->attr_version;
-//	printk("(fuse_change_attribute_common) attribute valid time passed : %llu\n", attr_valid);
 	fi->i_time = attr_valid;
 		
-//	printk("(fuse_change_attributes_common) Inode number before squash : %lu and passed : %llu \n", inode->i_ino, attr->ino);
 	inode->i_ino     = fuse_squash_ino(attr->ino);
-//	printk("(fuse_change_attributes_common) Inode number after squash : %lu\n", inode->i_ino);
 	inode->i_mode    = (inode->i_mode & S_IFMT) | (attr->mode & 07777);
 	set_nlink(inode, attr->nlink);
 	inode->i_uid     = make_kuid(&init_user_ns, attr->uid);
@@ -328,7 +321,6 @@ struct inode *fuse_iget(struct super_block *sb, u64 nodeid,
 	spin_lock(&fc->lock);
 	fi->nlookup++;
 	spin_unlock(&fc->lock);
-//	printk("Inside fuse_iget (before calling fuse_change_attributes)\n");
 	fuse_change_attributes(inode, attr, attr_valid, attr_version);
 
 	return inode;
@@ -361,7 +353,6 @@ int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
 
 static void fuse_umount_begin(struct super_block *sb)
 {
-	printk("FUSE super umount begin\n");
 	fuse_abort_conn(get_fuse_conn_super(sb));
 }
 
@@ -388,7 +379,6 @@ static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
-	printk("FUSE super put super\n");
 	fuse_send_destroy(fc);
 
 	fuse_abort_conn(fc);
@@ -423,7 +413,6 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct fuse_statfs_out outarg;
 	int err;
 
-	printk("FUSE super statfs\n");
 	if (!fuse_allow_current_process(fc)) {
 		buf->f_type = FUSE_SUPER_MAGIC;
 		return 0;
@@ -565,7 +554,6 @@ static int fuse_show_options(struct seq_file *m, struct dentry *root)
 	struct super_block *sb = root->d_sb;
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
-	printk("FUSE super show options\n");
 	seq_printf(m, ",user_id=%u", from_kuid_munged(&init_user_ns, fc->user_id));
 	seq_printf(m, ",group_id=%u", from_kgid_munged(&init_user_ns, fc->group_id));
 	if (fc->flags & FUSE_DEFAULT_PERMISSIONS)
