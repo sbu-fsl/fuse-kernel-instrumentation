@@ -13,6 +13,8 @@
 #include <linux/slab.h>
 #define FUSE_CTL_SUPER_MAGIC 0x65735543
 
+#define MAX_SIZE 1536
+
 /*
  * This is non-NULL when the single instance of the control filesystem
  * exists.  Protected by fuse_mutex
@@ -381,6 +383,75 @@ out:
         return count;
 }
 
+static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
+						char __user *buf, size_t len,
+						loff_t *ppos)
+{
+	struct fuse_conn *fc;
+	char tmp[MAX_SIZE], number[10];
+	int available = MAX_SIZE, length, i, count = 0, ret, starting_index = -1;
+	size_t size;
+
+//	printk("Inside fuse_conn_writeback_req_sizes_read\n");
+	fc = fuse_ctl_file_conn_get(file);
+	if (!fc)
+                return 0;
+
+	tmp[0] = '\0';
+	length = fc->req_sizes_len;
+	if (*ppos == 0) {
+		for (i = 0; i < length; i++) {
+			size = sprintf(number, "%d", fc->req_sizes[i]);
+			if ((size+1) < available) {
+				strcat(tmp, number);
+				available = available-size;
+				strcat(tmp, "\n");
+				available = available - 1;
+			} else {
+//				printk("Index broken at : %d\n", i);
+				goto out;
+			}
+		}
+	} else {
+		for (i = 0; i < length; i++) {
+			size = sprintf(number, "%d", fc->req_sizes[i]);
+			if (count < *ppos) {
+				count = count + size + 1;
+			} else {
+				starting_index = i;
+				break;
+			}
+		}
+//		printk("starting index : %d\n", starting_index);
+		if (starting_index != -1) {
+			for (i = starting_index; i < length; i++) {
+				size = sprintf(number, "%d", fc->req_sizes[i]);
+				if ((size+1) < available) {
+					strcat(tmp, number);
+					available = available-size;
+					strcat(tmp, "\n");
+					available = available - 1;
+				} else {
+					goto out;
+				}
+			}
+		} else {
+			fuse_conn_put(fc);
+			return 0;
+		}
+	}
+out: 
+	fuse_conn_put(fc);
+	count = strlen(tmp);
+//	printk("Total count of bytes copying to user space : %d\n", count);
+	ret = copy_to_user(buf, tmp, count);
+	if (ret == count)
+                return -EFAULT;
+	count -= ret;
+        *ppos = *ppos + count;
+        return count;
+}
+
 /*
 static unsigned long long int list_count(struct list_head *head) {
 	struct list_head *pln;
@@ -462,6 +533,13 @@ static const struct file_operations fuse_conn_queue_lengths_ops = {
         .llseek = no_llseek,
 };
 
+static const struct file_operations fuse_conn_writeback_req_sizes_ops = {
+        .open = nonseekable_open,
+        .read = fuse_conn_writeback_req_sizes_read,
+        .write = NULL,
+        .llseek = no_llseek,
+};
+
 static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 					  struct fuse_conn *fc,
 					  const char *name,
@@ -537,8 +615,10 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
                                  &fuse_conn_processing_queue_requests_timings_ops) ||
 	    !fuse_ctl_add_dentry(parent, fc, "queue_lengths",
                                  S_IFREG | 0600, 1, NULL,
-                                 &fuse_conn_queue_lengths_ops))
-
+                                 &fuse_conn_queue_lengths_ops) ||
+	    !fuse_ctl_add_dentry(parent, fc, "writeback_req_sizes",
+                                 S_IFREG | 0600, 1, NULL,
+                                 &fuse_conn_writeback_req_sizes_ops))
 		goto err;
 
 	return 0;

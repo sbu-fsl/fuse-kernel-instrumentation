@@ -18,6 +18,8 @@
 #include <linux/falloc.h>
 #include <linux/uio.h>
 
+//static int req_count = 0; /*For tracking number of writeback FUSE_WRITE requests*/
+
 static const struct file_operations fuse_direct_io_file_operations;
 
 static int fuse_send_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
@@ -1795,6 +1797,10 @@ static int fuse_writepages_fill(struct page *page,
 	    (is_writeback || req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
 	     (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write ||
 	     data->orig_pages[req->num_pages - 1]->index + 1 != page->index)) {
+		if (fc->req_sizes_len < MAX_ARRAY_SIZE) {
+			fc->req_sizes[fc->req_sizes_len] = req->num_pages;
+			fc->req_sizes_len++;
+		}
 		fuse_writepages_send(data);
 		data->req = NULL;
 	}
@@ -1877,9 +1883,11 @@ static int fuse_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_fill_wb_data data;
 	int err;
 
+//	printk("Fuse Write Pages Called \n");
 	err = -EIO;
 	if (is_bad_inode(inode))
 		goto out;
@@ -1894,11 +1902,30 @@ static int fuse_writepages(struct address_space *mapping,
 				  GFP_NOFS);
 	if (!data.orig_pages)
 		goto out;
-
+	
+/*	printk("writeback_control details(before sending to User Space) : \n");
+	printk("for_kupdate : %u\n", wbc->for_kupdate);
+	printk("for_background : %u\n", wbc->for_background);
+	printk("Tagged writes : %u\n", wbc->tagged_writepages);
+	printk("for_reclaim : %u\n", wbc->for_reclaim);
+	printk("range cyclic : %u\n", wbc->range_cyclic);
+	printk("for sync : %u\n", wbc->for_sync);*/
 	err = write_cache_pages(mapping, wbc, fuse_writepages_fill, &data);
 	if (data.req) {
 		/* Ignore errors if we can write at least one page */
 		BUG_ON(!data.req->num_pages);
+/*		printk("Sending Pages %d to User space (after write_cache_pages called, Inside fuse_writepages)\n", data.req->num_pages);
+		printk("writeback_control details(after sending to User Space) : \n");
+		printk("for_kupdate : %u\n", wbc->for_kupdate);
+		printk("for_background : %u\n", wbc->for_background);
+		printk("Tagged writes : %u\n", wbc->tagged_writepages);
+		printk("for_reclaim : %u\n", wbc->for_reclaim);
+		printk("range cyclic : %u\n", wbc->range_cyclic);
+		printk("for sync : %u\n", wbc->for_sync);*/
+		if (fc->req_sizes_len < MAX_ARRAY_SIZE) {
+			fc->req_sizes[fc->req_sizes_len] = data.req->num_pages;
+			fc->req_sizes_len++;
+		}
 		fuse_writepages_send(&data);
 		err = 0;
 	}

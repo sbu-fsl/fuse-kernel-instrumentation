@@ -592,6 +592,7 @@ void fuse_conn_init(struct fuse_conn *fc)
 	fc->blocked = 0;
 	fc->initialized = 0;
 	fc->attr_version = 1;
+//	fc->req_sizes = (int *)kmalloc(5*4096*sizeof(int), GFP_KERNEL); /*Large Array for number of requests, freed in fuse_free_conn*/
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 }
 EXPORT_SYMBOL_GPL(fuse_conn_init);
@@ -929,6 +930,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 
 static void fuse_free_conn(struct fuse_conn *fc)
 {
+//	kfree(fc->req_sizes);
 	kfree_rcu(fc, rcu);
 }
 

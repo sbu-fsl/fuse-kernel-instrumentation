@@ -23,8 +23,12 @@
 #include <linux/poll.h>
 #include <linux/workqueue.h>
 
+/*size of the integer array*/
+#define MAX_ARRAY_SIZE 5*4096
+
 /** Max number of pages that can be used in a single read request */
-#define FUSE_MAX_PAGES_PER_REQ 32
+/*#define FUSE_MAX_PAGES_PER_REQ 32*/
+#define FUSE_MAX_PAGES_PER_REQ 16384
 
 /** Bias for fi->writectr, meaning new writepages must not be sent */
 #define FUSE_NOWRITE INT_MIN
@@ -33,7 +37,7 @@
 #define FUSE_NAME_MAX 1024
 
 /** Number of dentries for each connection in the control filesystem */
-#define FUSE_CTL_NUM_DENTRIES 9
+#define FUSE_CTL_NUM_DENTRIES 10
 
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
@@ -638,6 +642,10 @@ struct fuse_conn {
 	long long unsigned int req_type_bg[46][33];
 	long long unsigned int req_type_pending[46][33];
 	long long unsigned int req_type_processing[46][33];
+
+	/*For tracking Number of pages in each FUSE_WRITE req incase of writeback_cache*/
+	int req_sizes[MAX_ARRAY_SIZE]; /*Array of big size*/
+	int req_sizes_len; /*Above Array length*/
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
