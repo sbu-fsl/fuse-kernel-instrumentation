@@ -635,9 +635,9 @@ struct fuse_conn {
 	long long unsigned int max_processing_count;
 
 	/*For tracking the requests and their timings*/
-	long long unsigned int req_type_bg[46][15];
-	long long unsigned int req_type_pending[46][15];
-	long long unsigned int req_type_processing[46][15];
+	long long unsigned int req_type_bg[46][33];
+	long long unsigned int req_type_pending[46][33];
+	long long unsigned int req_type_processing[46][33];
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)

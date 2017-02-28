@@ -29,10 +29,12 @@ static void populate_time(struct fuse_conn *fc, struct timespec *ts1, struct tim
         long time = ts2->tv_nsec - ts1->tv_nsec;
         long time_sec = ts2->tv_sec - ts1->tv_sec;
         int i;
-        time_sec *= 1000000;
-        time /= 1000;
+//        time_sec *= 1000000;	/*convert to micro secs*/
+//        time /= 1000;		/*convert to micro secs*/
+	time_sec *= 1000000000; /*convert to nano secs*/
         time += time_sec;
-        for(i=1;i<15;i++){
+//	printk("Time difference in nano secs(inside populate time) : %lu and LONG MAX is : %lu\n", time, LONG_MAX);
+        for (i=1; i<33; i++) {
                 if(time>>i == 0){
 			if(type == 0)
 				fc->req_type_bg[req_no][i-1] +=1;
@@ -44,11 +46,11 @@ static void populate_time(struct fuse_conn *fc, struct timespec *ts1, struct tim
                 }
         }
 	if(type == 0)
-		fc->req_type_bg[req_no][14] +=1;
+		fc->req_type_bg[req_no][32] +=1;
 	else if(type == 1)
-		fc->req_type_pending[req_no][14] +=1;
+		fc->req_type_pending[req_no][32] +=1;
 	else
-		fc->req_type_processing[req_no][14] +=1;
+		fc->req_type_processing[req_no][32] +=1;
 }
 
 static struct fuse_conn *fuse_get_conn(struct file *file)

@@ -198,7 +198,7 @@ static ssize_t fuse_conn_background_queue_request_timing_read(struct file *file,
         } else {
                 line[0] = '\0';
                 for (i = 1; i < 46; i++) {
-                        for (j = 0; j < 15; j++) {
+                        for (j = 0; j < 33; j++) {
                                 size = sprintf(number, "%llu ", fc->req_type_bg[i][j]);
                                 strcat(line, number);
                         }
@@ -220,7 +220,7 @@ out1 :
         tmp[0] = '\0';
         line[0] = '\0';
         for (i = starting_index; i < 46; i++) {
-                for (j = 0; j < 15; j++) {
+                for (j = 0; j < 33; j++) {
                         sprintf(number, "%llu ", fc->req_type_bg[i][j]);
                         strcat(line, number);
                 }
@@ -265,7 +265,7 @@ static ssize_t fuse_conn_pending_queue_request_timing_read(struct file *file,
         } else {
                 line[0] = '\0';
                 for (i = 1; i < 46; i++) {
-                        for (j = 0; j < 15; j++) {
+                        for (j = 0; j < 33; j++) {
                                 size = sprintf(number, "%llu ", fc->req_type_pending[i][j]);
                                 strcat(line, number);
                         }
@@ -287,7 +287,7 @@ out1 :
         tmp[0] = '\0';
         line[0] = '\0';
         for (i = starting_index; i < 46; i++) {
-                for (j = 0; j < 15; j++) {
+                for (j = 0; j < 33; j++) {
                         sprintf(number, "%llu ", fc->req_type_pending[i][j]);
                         strcat(line, number);
                 }
@@ -332,7 +332,7 @@ static ssize_t fuse_conn_processing_queue_request_timing_read(struct file *file,
         } else {
                 line[0] = '\0';
                 for (i = 1; i < 46; i++) {
-                        for (j = 0; j < 15; j++) {
+                        for (j = 0; j < 33; j++) {
                                 size = sprintf(number, "%llu ", fc->req_type_processing[i][j]);
                                 strcat(line, number);
                         }
@@ -354,7 +354,7 @@ out1 :
         tmp[0] = '\0';
         line[0] = '\0';
         for (i = starting_index; i < 46; i++) {
-                for (j = 0; j < 15; j++) {
+                for (j = 0; j < 33; j++) {
                         sprintf(number, "%llu ", fc->req_type_processing[i][j]);
                         strcat(line, number);
                 }
