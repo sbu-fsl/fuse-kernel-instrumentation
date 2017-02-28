@@ -80,9 +80,19 @@ static ssize_t fuse_conn_limit_reads(struct file *file, char __user *buf,
 					unsigned long long int val8, unsigned long long int val9)
 {
         char tmp[128];
-        size_t size = sprintf(tmp, "%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n", val1, val2, val3, val4, val5, val6, val7, val8, val9);
 
+        size_t size = sprintf(tmp, "%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n", val1, val2, val3, val4, val5, val6, val7, val8, val9);
         return simple_read_from_buffer(buf, len, ppos, tmp, size);
+}
+
+static ssize_t fuse_conn_writeback_reads(struct file *file, char __user *buf,
+					size_t len, loff_t *ppos, unsigned long long int val1,
+					unsigned long long int val2)
+{
+	char tmp[128];
+
+	size_t size = sprintf(tmp, "%llu\n%llu\n", val1, val2);
+	return simple_read_from_buffer(buf, len, ppos, tmp, size);
 }
 
 static ssize_t fuse_conn_limit_write(struct file *file, const char __user *buf,
@@ -401,70 +411,18 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 						loff_t *ppos)
 {
 	struct fuse_conn *fc;
-	char tmp[MAX_SIZE], number[10];
-	int available = MAX_SIZE, length, i, count = 0, ret, starting_index = -1;
-	size_t size;
+	unsigned long long int complete_reqs;
+	unsigned long long int incomplete_reqs;
 
-//	printk("Inside fuse_conn_writeback_req_sizes_read\n");
 	fc = fuse_ctl_file_conn_get(file);
 	if (!fc)
                 return 0;
 
-	tmp[0] = '\0';
-	length = fc->req_sizes_len;
-	if (*ppos == 0) {
-		for (i = 0; i < length; i++) {
-			size = sprintf(number, "%u", fc->req_sizes[i]);
-			if ((size+1) < available) {
-				strcat(tmp, number);
-				available = available-size;
-				strcat(tmp, "\n");
-				available = available - 1;
-			} else {
-//				printk("Index broken at : %d\n", i);
-				goto out;
-			}
-		}
-	} else {
-		for (i = 0; i < length; i++) {
-			size = sprintf(number, "%u", fc->req_sizes[i]);
-			if (count < *ppos) {
-				count = count + size + 1;
-			} else {
-				starting_index = i;
-				break;
-			}
-		}
-//		printk("starting index : %d\n", starting_index);
-		if (starting_index != -1) {
-			for (i = starting_index; i < length; i++) {
-				size = sprintf(number, "%u", fc->req_sizes[i]);
-				if ((size+1) < available) {
-					strcat(tmp, number);
-					available = available-size;
-					strcat(tmp, "\n");
-					available = available - 1;
-				} else {
-					goto out;
-				}
-			}
-		} else {
-			fuse_conn_put(fc);
-			return 0;
-		}
-	}
-out: 
+	complete_reqs = fc->complete_reqs;
+	incomplete_reqs = fc->incomplete_reqs;
+
 	fuse_conn_put(fc);
-	count = strlen(tmp);
-	if (count == 0)
-		return count;
-//	printk("Total count of bytes copying to user space : %d\n", count);
-	ret = copy_to_user(buf, tmp, count);
-	if (ret == count)
-                return -EFAULT;
-	count -= ret;
-        *ppos = *ppos + count;
-        return count;
+	return fuse_conn_writeback_reads(file, buf, len, ppos, complete_reqs, incomplete_reqs);
 }
 
 /*

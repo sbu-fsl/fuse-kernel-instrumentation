@@ -23,9 +23,6 @@
 #include <linux/poll.h>
 #include <linux/workqueue.h>
 
-/*size of the integer array*/
-#define MAX_ARRAY_SIZE 512*1024
-
 /** Max number of pages that can be used in a single read request */
 /*#define FUSE_MAX_PAGES_PER_REQ 32*/
 #define FUSE_MAX_PAGES_PER_REQ 16384
@@ -648,8 +645,8 @@ struct fuse_conn {
 	long long unsigned int req_type_processing[46][33];
 
 	/*For tracking Number of pages in each FUSE_WRITE req incase of writeback_cache*/
-	uint16_t req_sizes[MAX_ARRAY_SIZE]; /*Array of big size*/
-	int req_sizes_len; /*Above Array length*/
+	long long unsigned int complete_reqs; /*FUSE write reqs num pages equals max_writes*/
+	long long unsigned int incomplete_reqs; /*FUSE write reqs num pages not equals max_writes*/
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)

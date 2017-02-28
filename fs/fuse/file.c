@@ -1796,10 +1796,10 @@ static int fuse_writepages_fill(struct page *page,
 	    (is_writeback || req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
 	     (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write ||
 	     data->orig_pages[req->num_pages - 1]->index + 1 != page->index)) {
-		if (fc->req_sizes_len < MAX_ARRAY_SIZE) {
-			fc->req_sizes[fc->req_sizes_len] = req->num_pages;
-			fc->req_sizes_len++;
-		}
+		if ((req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write)
+			fc->complete_reqs++;
+		else
+			fc->incomplete_reqs++;
 		fuse_writepages_send(data);
 		data->req = NULL;
 	}
@@ -1905,10 +1905,10 @@ static int fuse_writepages(struct address_space *mapping,
 	if (data.req) {
 		/* Ignore errors if we can write at least one page */
 		BUG_ON(!data.req->num_pages);
-		if (fc->req_sizes_len < MAX_ARRAY_SIZE) {
-			fc->req_sizes[fc->req_sizes_len] = data.req->num_pages;
-			fc->req_sizes_len++;
-		}
+		if ((data.req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write)
+			fc->complete_reqs++;
+		else
+			fc->incomplete_reqs++;
 		fuse_writepages_send(&data);
 		err = 0;
 	}
