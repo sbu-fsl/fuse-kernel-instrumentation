@@ -349,6 +349,7 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
+	req->pending_queue = 1;
 	getnstimeofday(&(req->ts_pending));
 //	printk("Request  : %d is added to PENDING QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
 	fc->pending_count++;
@@ -442,9 +443,13 @@ __releases(fc->lock)
 		end(fc, req);
 	getnstimeofday(&ts);
 //	printk("Request  : %d is ended by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
-	populate_time(fc, &(req->ts_bg), &(req->ts_pending), req->in.h.opcode, 0);
-	populate_time(fc, &(req->ts_pending), &(req->ts_processing), req->in.h.opcode, 1);
-	populate_time(fc, &(req->ts_processing), &ts, req->in.h.opcode, 2);
+//	printk("Unique id for req type : %d is %lld (completed)\n", req->in.h.opcode, req->in.h.unique);
+	if (req->bg_queue)
+		populate_time(fc, &(req->ts_bg), &(req->ts_pending), req->in.h.opcode, 0);
+	if (req->pending_queue)
+		populate_time(fc, &(req->ts_pending), &(req->ts_processing), req->in.h.opcode, 1);
+	if (req->processing_queue)
+		populate_time(fc, &(req->ts_processing), &ts, req->in.h.opcode, 2);
 	fuse_put_request(fc, req);
 }
 
@@ -637,6 +642,7 @@ static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
 		set_bdi_congested(&fc->bdi, BLK_RW_SYNC);
 		set_bdi_congested(&fc->bdi, BLK_RW_ASYNC);
 	}
+	req->bg_queue = 1;
 	getnstimeofday(&(req->ts_bg));
 //	printk("Request : %d is added to BG QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
 	fc->bg_count++;
@@ -1375,6 +1381,8 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 		request_end(fc, req);
 	else {
 		req->state = FUSE_REQ_SENT;
+		req->processing_queue = 1;
+//		printk("Unique id for req type : %d is %lld (before processing)\n", req->in.h.opcode, req->in.h.unique);
 		getnstimeofday(&(req->ts_processing));
 //		printk("Request : %d is moved to PROCESSING QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
 		fc->pending_count--;

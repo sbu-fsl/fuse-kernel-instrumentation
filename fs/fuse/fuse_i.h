@@ -379,6 +379,9 @@ struct fuse_req {
 	/** Request is stolen from fuse_file->reserved_req */
 	struct file *stolen_file;
 
+	unsigned bg_queue:1;
+	unsigned pending_queue:1;
+	unsigned processing_queue:1;
 	struct timespec ts_bg;
 	struct timespec ts_pending;
 	struct timespec ts_processing;
