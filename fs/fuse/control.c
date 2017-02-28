@@ -10,7 +10,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-
+#include <linux/slab.h>
 #define FUSE_CTL_SUPER_MAGIC 0x65735543
 
 /*
@@ -65,9 +65,9 @@ static ssize_t fuse_conn_limit_read(struct file *file, char __user *buf,
 				    size_t len, loff_t *ppos, unsigned val)
 {
 	char tmp[32];
-	size_t size = sprintf(tmp, "%u\n", val);
+        size_t size = sprintf(tmp, "%u\n", val);
 
-	return simple_read_from_buffer(buf, len, ppos, tmp, size);
+        return simple_read_from_buffer(buf, len, ppos, tmp, size);
 }
 
 static ssize_t fuse_conn_limit_write(struct file *file, const char __user *buf,
@@ -170,6 +170,207 @@ static ssize_t fuse_conn_congestion_threshold_write(struct file *file,
 	return ret;
 }
 
+static ssize_t fuse_conn_background_queue_request_timing_read(struct file *file,
+                                                   char __user *buf, size_t len,
+                                                   loff_t *ppos)
+{
+        struct fuse_conn *fc;
+	char tmp[1536], line[200], number[12];
+	int available = 1536, i, j, starting_index = -1, count = 0, ret;
+	size_t size;
+
+	fc = fuse_ctl_file_conn_get(file);
+        if (!fc)
+                return 0;
+
+	if (*ppos == 0) {
+                starting_index = 0;
+        } else {
+                line[0] = '\0';
+                for (i = 0; i < 46; i++) {
+                        for (j = 0; j < 15; j++) {
+                                size = sprintf(number, "%d ", fc->req_type_bg[i][j]);
+                                strcat(line, number);
+                        }
+                        size = strlen(line);
+                        if (count < *ppos)
+                                count = count + (size + 1);
+                        else {
+                                starting_index = i;
+                                goto out1;
+                        }
+                        line[0] = '\0';
+                }
+        }
+out1 :
+        if (starting_index == -1) {
+		fuse_conn_put(fc);
+                return 0;
+	}
+        tmp[0] = '\0';
+        line[0] = '\0';
+        for (i = starting_index; i < 46; i++) {
+                for (j = 0; j < 15; j++) {
+                        sprintf(number, "%d ", fc->req_type_bg[i][j]);
+                        strcat(line, number);
+                }
+                size = strlen(line);
+                if (size+1 <= available) {
+                        strcat(tmp, line);
+                        available = available - size;
+                        strcat(tmp, "\n");
+                        available = available - 1;
+                } else {
+                        goto out;
+                }
+                line[0] = '\0';
+        }
+
+out:
+        fuse_conn_put(fc);
+	count = strlen(tmp);
+	ret = copy_to_user(buf, tmp, count);
+	if (ret == count)
+		return -EFAULT;
+	count -= ret;
+	*ppos = *ppos + count;
+	return count;
+}
+
+static ssize_t fuse_conn_pending_queue_request_timing_read(struct file *file,
+                                                   char __user *buf, size_t len,
+                                                   loff_t *ppos)
+{
+        struct fuse_conn *fc;
+        char tmp[1536], line[200], number[12];
+        int available = 1536, i, j, starting_index = -1, count = 0, ret;
+        size_t size;
+
+        fc = fuse_ctl_file_conn_get(file);
+        if (!fc)
+                return 0;
+
+        if (*ppos == 0) {
+                starting_index = 0;
+        } else {
+                line[0] = '\0';
+                for (i = 0; i < 46; i++) {
+                        for (j = 0; j < 15; j++) {
+                                size = sprintf(number, "%d ", fc->req_type_pending[i][j]);
+                                strcat(line, number);
+                        }
+                        size = strlen(line);
+                        if (count < *ppos)
+                                count = count + (size + 1);
+                        else {
+                                starting_index = i;
+                                goto out1;
+                        }
+                        line[0] = '\0';
+                }
+        }
+out1 :
+        if (starting_index == -1) {
+                fuse_conn_put(fc);
+                return 0;
+        }
+        tmp[0] = '\0';
+        line[0] = '\0';
+        for (i = starting_index; i < 46; i++) {
+                for (j = 0; j < 15; j++) {
+                        sprintf(number, "%d ", fc->req_type_pending[i][j]);
+                        strcat(line, number);
+                }
+                size = strlen(line);
+                if (size+1 <= available) {
+                        strcat(tmp, line);
+                        available = available - size;
+                        strcat(tmp, "\n");
+                        available = available - 1;
+                } else {
+                        goto out;
+                }
+                line[0] = '\0';
+        }
+
+out:
+        fuse_conn_put(fc);
+        count = strlen(tmp);
+        ret = copy_to_user(buf, tmp, count);
+        if (ret == count)
+                return -EFAULT;
+        count -= ret;
+        *ppos = *ppos + count;
+        return count;
+}
+
+static ssize_t fuse_conn_processing_queue_request_timing_read(struct file *file,
+                                                   char __user *buf, size_t len,
+                                                   loff_t *ppos)
+{
+        struct fuse_conn *fc;
+        char tmp[1536], line[200], number[12];
+        int available = 1536, i, j, starting_index = -1, count = 0, ret;
+        size_t size;
+
+        fc = fuse_ctl_file_conn_get(file);
+        if (!fc)
+                return 0;
+
+        if (*ppos == 0) {
+                starting_index = 0;
+        } else {
+                line[0] = '\0';
+                for (i = 0; i < 46; i++) {
+                        for (j = 0; j < 15; j++) {
+                                size = sprintf(number, "%d ", fc->req_type_processing[i][j]);
+                                strcat(line, number);
+                        }
+                        size = strlen(line);
+                        if (count < *ppos)
+                                count = count + (size + 1);
+                        else {
+                                starting_index = i;
+                                goto out1;
+                        }
+                        line[0] = '\0';
+                }
+        }
+out1 :
+        if (starting_index == -1) {
+                fuse_conn_put(fc);
+                return 0;
+        }
+        tmp[0] = '\0';
+        line[0] = '\0';
+        for (i = starting_index; i < 46; i++) {
+                for (j = 0; j < 15; j++) {
+                        sprintf(number, "%d ", fc->req_type_processing[i][j]);
+                        strcat(line, number);
+                }
+                size = strlen(line);
+                if (size+1 <= available) {
+                        strcat(tmp, line);
+                        available = available - size;
+                        strcat(tmp, "\n");
+                        available = available - 1;
+                } else {
+                        goto out;
+                }
+                line[0] = '\0';
+        }
+
+out:
+        fuse_conn_put(fc);
+        count = strlen(tmp);
+        ret = copy_to_user(buf, tmp, count);
+        if (ret == count)
+                return -EFAULT;
+        count -= ret;
+        *ppos = *ppos + count;
+        return count;
+}
+
 static const struct file_operations fuse_ctl_abort_ops = {
 	.open = nonseekable_open,
 	.write = fuse_conn_abort_write,
@@ -196,6 +397,27 @@ static const struct file_operations fuse_conn_congestion_threshold_ops = {
 	.llseek = no_llseek,
 };
 
+static const struct file_operations fuse_conn_background_queue_requests_timings_ops = {
+	.open = nonseekable_open,
+	.read = fuse_conn_background_queue_request_timing_read,
+	.write = NULL,
+	.llseek = no_llseek,
+};
+
+static const struct file_operations fuse_conn_pending_queue_requests_timings_ops = {
+        .open = nonseekable_open,
+        .read = fuse_conn_pending_queue_request_timing_read,
+        .write = NULL,
+        .llseek = no_llseek,
+};
+
+static const struct file_operations fuse_conn_processing_queue_requests_timings_ops = {
+        .open = nonseekable_open,
+        .read = fuse_conn_processing_queue_request_timing_read,
+        .write = NULL,
+        .llseek = no_llseek,
+};
+
 static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 					  struct fuse_conn *fc,
 					  const char *name,
@@ -205,7 +427,6 @@ static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 {
 	struct dentry *dentry;
 	struct inode *inode;
-
 	BUG_ON(fc->ctl_ndents >= FUSE_CTL_NUM_DENTRIES);
 	dentry = d_alloc_name(parent, name);
 	if (!dentry)
@@ -260,7 +481,16 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 				 1, NULL, &fuse_conn_max_background_ops) ||
 	    !fuse_ctl_add_dentry(parent, fc, "congestion_threshold",
 				 S_IFREG | 0600, 1, NULL,
-				 &fuse_conn_congestion_threshold_ops))
+				 &fuse_conn_congestion_threshold_ops) ||
+	    !fuse_ctl_add_dentry(parent, fc, "background_queue_requests_timings",
+                                 S_IFREG | 0600, 1, NULL,
+                                 &fuse_conn_background_queue_requests_timings_ops) ||
+	    !fuse_ctl_add_dentry(parent, fc, "pending_queue_requests_timings",
+                                 S_IFREG | 0600, 1, NULL,
+                                 &fuse_conn_pending_queue_requests_timings_ops) ||
+	    !fuse_ctl_add_dentry(parent, fc, "processing_queue_requests_timings",
+                                 S_IFREG | 0600, 1, NULL,
+                                 &fuse_conn_processing_queue_requests_timings_ops))
 		goto err;
 
 	return 0;

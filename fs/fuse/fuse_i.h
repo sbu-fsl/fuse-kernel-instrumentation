@@ -33,7 +33,7 @@
 #define FUSE_NAME_MAX 1024
 
 /** Number of dentries for each connection in the control filesystem */
-#define FUSE_CTL_NUM_DENTRIES 5
+#define FUSE_CTL_NUM_DENTRIES 8
 
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
@@ -378,6 +378,10 @@ struct fuse_req {
 
 	/** Request is stolen from fuse_file->reserved_req */
 	struct file *stolen_file;
+
+	struct timespec ts_bg;
+	struct timespec ts_pending;
+	struct timespec ts_processing;
 };
 
 /**
@@ -614,6 +618,11 @@ struct fuse_conn {
 
 	/** Read/write semaphore to hold when accessing sb. */
 	struct rw_semaphore killsb;
+
+	/*For tracking the requests and their timings*/
+	int req_type_bg[46][15];
+	int req_type_pending[46][15];
+	int req_type_processing[46][15];
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)

@@ -903,7 +903,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 {
 	struct fuse_init_in *arg = &req->misc.init_in;
-
+	printk("INODE file fuse_send_init\n");
 	arg->major = FUSE_KERNEL_VERSION;
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;
 	arg->max_readahead = fc->bdi.ra_pages * PAGE_CACHE_SIZE;
@@ -1142,6 +1142,7 @@ static struct dentry *fuse_mount_blk(struct file_system_type *fs_type,
 			   int flags, const char *dev_name,
 			   void *raw_data)
 {
+	printk("Mounting fuseblk FS with device name : %s\n", dev_name);
 	return mount_bdev(fs_type, flags, dev_name, raw_data, fuse_fill_super);
 }
 

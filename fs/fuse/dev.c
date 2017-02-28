@@ -25,6 +25,32 @@ MODULE_ALIAS("devname:fuse");
 
 static struct kmem_cache *fuse_req_cachep;
 
+static void populate_time(struct fuse_conn *fc, struct timespec *ts1, struct timespec *ts2, int req_no, int type) {
+        long time = ts2->tv_nsec - ts1->tv_nsec;
+        long time_sec = ts2->tv_sec - ts1->tv_sec;
+        int i;
+        time_sec *= 1000000;
+        time /= 1000;
+        time += time_sec;
+        for(i=1;i<15;i++){
+                if(time>>i == 0){
+			if(type == 0)
+				fc->req_type_bg[req_no][i-1] +=1;
+			else if(type == 1)
+				fc->req_type_pending[req_no][i-1] +=1;
+			else
+				fc->req_type_processing[req_no][i-1] +=1;
+                        return;
+                }
+        }
+	if(type == 0)
+		fc->req_type_bg[req_no][14] +=1;
+	else if(type == 1)
+		fc->req_type_pending[req_no][14] +=1;
+	else
+		fc->req_type_processing[req_no][14] +=1;
+}
+
 static struct fuse_conn *fuse_get_conn(struct file *file)
 {
 	/*
@@ -323,6 +349,8 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
+	getnstimeofday(&(req->ts_pending));
+//	printk("Request  : %d is added to PENDING QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
 	list_add_tail(&req->list, &fc->pending);
 	req->state = FUSE_REQ_PENDING;
 	if (!req->waiting) {
@@ -378,6 +406,8 @@ static void flush_bg_queue(struct fuse_conn *fc)
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 __releases(fc->lock)
 {
+
+	struct timespec ts;
 	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
 	req->end = NULL;
 	list_del(&req->list);
@@ -406,6 +436,11 @@ __releases(fc->lock)
 	wake_up(&req->waitq);
 	if (end)
 		end(fc, req);
+	getnstimeofday(&ts);
+//	printk("Request  : %d is ended by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
+	populate_time(fc, &(req->ts_bg), &(req->ts_pending), req->in.h.opcode, 0);
+	populate_time(fc, &(req->ts_pending), &(req->ts_processing), req->in.h.opcode, 1);
+	populate_time(fc, &(req->ts_processing), &ts, req->in.h.opcode, 2);
 	fuse_put_request(fc, req);
 }
 
@@ -598,6 +633,8 @@ static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
 		set_bdi_congested(&fc->bdi, BLK_RW_SYNC);
 		set_bdi_congested(&fc->bdi, BLK_RW_ASYNC);
 	}
+	getnstimeofday(&(req->ts_bg));
+//	printk("Request : %d is added to BG QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
 	list_add_tail(&req->list, &fc->bg_queue);
 	flush_bg_queue(fc);
 }
@@ -1332,6 +1369,8 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 		request_end(fc, req);
 	else {
 		req->state = FUSE_REQ_SENT;
+		getnstimeofday(&(req->ts_processing));
+//		printk("Request : %d is moved to PROCESSING QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
 		list_move_tail(&req->list, &fc->processing);
 		if (req->interrupted)
 			queue_interrupt(fc, req);
@@ -2224,6 +2263,33 @@ static int fuse_dev_fasync(int fd, struct file *file, int on)
 	/* No locking - fasync_helper does its own locking */
 	return fasync_helper(fd, file, on, &fc->fasync);
 }
+
+/*
+static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
+{
+        int i, j;
+	printk("Mmap Called\n");
+        for(i=0;i<46;i++){
+		printk("Rec Type bg: %d\n", i);
+		for(j=0;j<15;j++)
+                	printk("%d ", req_type_bg[i][j]);
+   	    	printk("\n");
+	}
+        for(i=0;i<46;i++){
+		printk("Rec Type pending: %d\n", i);
+		for(j=0;j<15;j++)
+                	printk("%d ", req_type_pending[i][j]);
+   	    	printk("\n");
+	}
+        for(i=0;i<46;i++){
+		printk("Rec Type processing: %d\n", i);
+		for(j=0;j<15;j++)
+                	printk("%d ", req_type_processing[i][j]);
+   	    	printk("\n");
+	}
+        return 0;
+}*/
+
 
 const struct file_operations fuse_dev_operations = {
 	.owner		= THIS_MODULE,
