@@ -74,10 +74,13 @@ static ssize_t fuse_conn_limit_read(struct file *file, char __user *buf,
 
 static ssize_t fuse_conn_limit_reads(struct file *file, char __user *buf,
                                     size_t len, loff_t *ppos, unsigned long long int val1, 
-					unsigned long long int val2, unsigned long long int val3)
+					unsigned long long int val2, unsigned long long int val3, 
+					unsigned long long int val4, unsigned long long int val5,
+					unsigned long long int val6, unsigned long long int val7,
+					unsigned long long int val8, unsigned long long int val9)
 {
-        char tmp[32];
-        size_t size = sprintf(tmp, "%llu\n%llu\n%llu\n", val1, val2, val3);
+        char tmp[128];
+        size_t size = sprintf(tmp, "%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n", val1, val2, val3, val4, val5, val6, val7, val8, val9);
 
         return simple_read_from_buffer(buf, len, ppos, tmp, size);
 }
@@ -195,6 +198,7 @@ static ssize_t fuse_conn_background_queue_request_timing_read(struct file *file,
         if (!fc)
                 return 0;
 
+	spin_lock(&fc->lock);
 	if (*ppos == 0) {
                 starting_index = 1;
         } else {
@@ -216,6 +220,7 @@ static ssize_t fuse_conn_background_queue_request_timing_read(struct file *file,
         }
 out1 :
         if (starting_index == -1) {
+		spin_unlock(&fc->lock);
 		fuse_conn_put(fc);
                 return 0;
 	}
@@ -239,6 +244,7 @@ out1 :
         }
 
 out:
+	spin_unlock(&fc->lock);
         fuse_conn_put(fc);
 	count = strlen(tmp);
 	ret = copy_to_user(buf, tmp, count);
@@ -262,6 +268,7 @@ static ssize_t fuse_conn_pending_queue_request_timing_read(struct file *file,
         if (!fc)
                 return 0;
 
+	spin_lock(&fc->lock);
         if (*ppos == 0) {
                 starting_index = 1;
         } else {
@@ -283,6 +290,7 @@ static ssize_t fuse_conn_pending_queue_request_timing_read(struct file *file,
         }
 out1 :
         if (starting_index == -1) {
+		spin_unlock(&fc->lock);
                 fuse_conn_put(fc);
                 return 0;
         }
@@ -306,6 +314,7 @@ out1 :
         }
 
 out:
+	spin_unlock(&fc->lock);
         fuse_conn_put(fc);
         count = strlen(tmp);
         ret = copy_to_user(buf, tmp, count);
@@ -329,6 +338,7 @@ static ssize_t fuse_conn_processing_queue_request_timing_read(struct file *file,
         if (!fc)
                 return 0;
 
+	spin_lock(&fc->lock);
         if (*ppos == 0) {
                 starting_index = 1;
         } else {
@@ -350,6 +360,7 @@ static ssize_t fuse_conn_processing_queue_request_timing_read(struct file *file,
         }
 out1 :
         if (starting_index == -1) {
+		spin_unlock(&fc->lock);
                 fuse_conn_put(fc);
                 return 0;
         }
@@ -373,6 +384,7 @@ out1 :
         }
 
 out:
+	spin_unlock(&fc->lock);
         fuse_conn_put(fc);
         count = strlen(tmp);
         ret = copy_to_user(buf, tmp, count);
@@ -383,6 +395,7 @@ out:
         return count;
 }
 
+/*No locks*/
 static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 						char __user *buf, size_t len,
 						loff_t *ppos)
@@ -401,7 +414,7 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 	length = fc->req_sizes_len;
 	if (*ppos == 0) {
 		for (i = 0; i < length; i++) {
-			size = sprintf(number, "%d", fc->req_sizes[i]);
+			size = sprintf(number, "%u", fc->req_sizes[i]);
 			if ((size+1) < available) {
 				strcat(tmp, number);
 				available = available-size;
@@ -414,7 +427,7 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 		}
 	} else {
 		for (i = 0; i < length; i++) {
-			size = sprintf(number, "%d", fc->req_sizes[i]);
+			size = sprintf(number, "%u", fc->req_sizes[i]);
 			if (count < *ppos) {
 				count = count + size + 1;
 			} else {
@@ -425,7 +438,7 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 //		printk("starting index : %d\n", starting_index);
 		if (starting_index != -1) {
 			for (i = starting_index; i < length; i++) {
-				size = sprintf(number, "%d", fc->req_sizes[i]);
+				size = sprintf(number, "%u", fc->req_sizes[i]);
 				if ((size+1) < available) {
 					strcat(tmp, number);
 					available = available-size;
@@ -443,6 +456,8 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 out: 
 	fuse_conn_put(fc);
 	count = strlen(tmp);
+	if (count == 0)
+		return count;
 //	printk("Total count of bytes copying to user space : %d\n", count);
 	ret = copy_to_user(buf, tmp, count);
 	if (ret == count)
@@ -469,14 +484,25 @@ static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 					loff_t *ppos)
 {
 	struct fuse_conn *fc;
-	unsigned long long int bg_length, pending_length, processing_length;
+	unsigned long long int bg_entered, bg_removed, bg_max, pending_entered, pending_removed, pending_max, processing_entered, processing_removed, processing_max;
 	
 	fc = fuse_ctl_file_conn_get(file);
-	bg_length = fc->max_bg_count;
-	pending_length = fc->max_pending_count;
-	processing_length = fc->max_processing_count;
+	spin_lock(&fc->lock);
+	bg_entered = fc->bg_entered;
+	bg_removed = fc->bg_removed;
+	bg_max = fc->max_bg_count;
+
+	pending_entered = fc->pending_entered;
+	pending_removed = fc->pending_removed;
+	pending_max = fc->max_pending_count;
+
+	processing_entered = fc->processing_entered;
+	processing_removed = fc->processing_removed;
+	processing_max = fc->max_processing_count;
+
+	spin_unlock(&fc->lock);
 	fuse_conn_put(fc);
-	return fuse_conn_limit_reads(file, buf, len, ppos, bg_length, pending_length, processing_length);
+	return fuse_conn_limit_reads(file, buf, len, ppos, bg_entered, bg_removed, bg_max, pending_entered, pending_removed, pending_max, processing_entered, processing_removed, processing_max);
 }
 
 static const struct file_operations fuse_ctl_abort_ops = {

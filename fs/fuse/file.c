@@ -1887,7 +1887,7 @@ static int fuse_writepages(struct address_space *mapping,
 	struct fuse_fill_wb_data data;
 	int err;
 
-//	printk("Fuse Write Pages Called \n");
+	printk("Max write value is : %u\n", fc->max_write);
 	err = -EIO;
 	if (is_bad_inode(inode))
 		goto out;

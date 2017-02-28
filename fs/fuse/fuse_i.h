@@ -24,7 +24,7 @@
 #include <linux/workqueue.h>
 
 /*size of the integer array*/
-#define MAX_ARRAY_SIZE 5*4096
+#define MAX_ARRAY_SIZE 512*1024
 
 /** Max number of pages that can be used in a single read request */
 /*#define FUSE_MAX_PAGES_PER_REQ 32*/
@@ -626,16 +626,20 @@ struct fuse_conn {
 	/** Read/write semaphore to hold when accessing sb. */
 	struct rw_semaphore killsb;
 
+	/*Using the starting spin lock to protect the following*/
 	/*For tracking the background queue length*/
-	long long unsigned int bg_count;
+	long long unsigned int bg_entered;
+	long long unsigned int bg_removed;
 	long long unsigned int max_bg_count;
 
 	/*For tracking the pending queue length*/
-	long long unsigned int pending_count;
+	long long unsigned int pending_entered;
+	long long unsigned int pending_removed;
 	long long unsigned int max_pending_count;
 
 	/*For tracking the processing queue length*/
-	long long unsigned int processing_count;
+	long long unsigned int processing_entered;
+	long long unsigned int processing_removed;
 	long long unsigned int max_processing_count;
 
 	/*For tracking the requests and their timings*/
@@ -644,7 +648,7 @@ struct fuse_conn {
 	long long unsigned int req_type_processing[46][33];
 
 	/*For tracking Number of pages in each FUSE_WRITE req incase of writeback_cache*/
-	int req_sizes[MAX_ARRAY_SIZE]; /*Array of big size*/
+	uint16_t req_sizes[MAX_ARRAY_SIZE]; /*Array of big size*/
 	int req_sizes_len; /*Above Array length*/
 };
 
