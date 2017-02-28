@@ -70,6 +70,16 @@ static ssize_t fuse_conn_limit_read(struct file *file, char __user *buf,
         return simple_read_from_buffer(buf, len, ppos, tmp, size);
 }
 
+static ssize_t fuse_conn_limit_reads(struct file *file, char __user *buf,
+                                    size_t len, loff_t *ppos, unsigned long long int val1, 
+					unsigned long long int val2, unsigned long long int val3)
+{
+        char tmp[32];
+        size_t size = sprintf(tmp, "%llu\n%llu\n%llu\n", val1, val2, val3);
+
+        return simple_read_from_buffer(buf, len, ppos, tmp, size);
+}
+
 static ssize_t fuse_conn_limit_write(struct file *file, const char __user *buf,
 				     size_t count, loff_t *ppos, unsigned *val,
 				     unsigned global_limit)
@@ -175,7 +185,7 @@ static ssize_t fuse_conn_background_queue_request_timing_read(struct file *file,
                                                    loff_t *ppos)
 {
         struct fuse_conn *fc;
-	char tmp[1536], line[200], number[12];
+	char tmp[1536], line[256], number[64];
 	int available = 1536, i, j, starting_index = -1, count = 0, ret;
 	size_t size;
 
@@ -184,12 +194,12 @@ static ssize_t fuse_conn_background_queue_request_timing_read(struct file *file,
                 return 0;
 
 	if (*ppos == 0) {
-                starting_index = 0;
+                starting_index = 1;
         } else {
                 line[0] = '\0';
-                for (i = 0; i < 46; i++) {
+                for (i = 1; i < 46; i++) {
                         for (j = 0; j < 15; j++) {
-                                size = sprintf(number, "%d ", fc->req_type_bg[i][j]);
+                                size = sprintf(number, "%llu ", fc->req_type_bg[i][j]);
                                 strcat(line, number);
                         }
                         size = strlen(line);
@@ -211,7 +221,7 @@ out1 :
         line[0] = '\0';
         for (i = starting_index; i < 46; i++) {
                 for (j = 0; j < 15; j++) {
-                        sprintf(number, "%d ", fc->req_type_bg[i][j]);
+                        sprintf(number, "%llu ", fc->req_type_bg[i][j]);
                         strcat(line, number);
                 }
                 size = strlen(line);
@@ -242,7 +252,7 @@ static ssize_t fuse_conn_pending_queue_request_timing_read(struct file *file,
                                                    loff_t *ppos)
 {
         struct fuse_conn *fc;
-        char tmp[1536], line[200], number[12];
+        char tmp[1536], line[256], number[64];
         int available = 1536, i, j, starting_index = -1, count = 0, ret;
         size_t size;
 
@@ -251,12 +261,12 @@ static ssize_t fuse_conn_pending_queue_request_timing_read(struct file *file,
                 return 0;
 
         if (*ppos == 0) {
-                starting_index = 0;
+                starting_index = 1;
         } else {
                 line[0] = '\0';
-                for (i = 0; i < 46; i++) {
+                for (i = 1; i < 46; i++) {
                         for (j = 0; j < 15; j++) {
-                                size = sprintf(number, "%d ", fc->req_type_pending[i][j]);
+                                size = sprintf(number, "%llu ", fc->req_type_pending[i][j]);
                                 strcat(line, number);
                         }
                         size = strlen(line);
@@ -278,7 +288,7 @@ out1 :
         line[0] = '\0';
         for (i = starting_index; i < 46; i++) {
                 for (j = 0; j < 15; j++) {
-                        sprintf(number, "%d ", fc->req_type_pending[i][j]);
+                        sprintf(number, "%llu ", fc->req_type_pending[i][j]);
                         strcat(line, number);
                 }
                 size = strlen(line);
@@ -309,7 +319,7 @@ static ssize_t fuse_conn_processing_queue_request_timing_read(struct file *file,
                                                    loff_t *ppos)
 {
         struct fuse_conn *fc;
-        char tmp[1536], line[200], number[12];
+        char tmp[1536], line[256], number[64];
         int available = 1536, i, j, starting_index = -1, count = 0, ret;
         size_t size;
 
@@ -318,12 +328,12 @@ static ssize_t fuse_conn_processing_queue_request_timing_read(struct file *file,
                 return 0;
 
         if (*ppos == 0) {
-                starting_index = 0;
+                starting_index = 1;
         } else {
                 line[0] = '\0';
-                for (i = 0; i < 46; i++) {
+                for (i = 1; i < 46; i++) {
                         for (j = 0; j < 15; j++) {
-                                size = sprintf(number, "%d ", fc->req_type_processing[i][j]);
+                                size = sprintf(number, "%llu ", fc->req_type_processing[i][j]);
                                 strcat(line, number);
                         }
                         size = strlen(line);
@@ -345,7 +355,7 @@ out1 :
         line[0] = '\0';
         for (i = starting_index; i < 46; i++) {
                 for (j = 0; j < 15; j++) {
-                        sprintf(number, "%d ", fc->req_type_processing[i][j]);
+                        sprintf(number, "%llu ", fc->req_type_processing[i][j]);
                         strcat(line, number);
                 }
                 size = strlen(line);
@@ -369,6 +379,33 @@ out:
         count -= ret;
         *ppos = *ppos + count;
         return count;
+}
+
+/*
+static unsigned long long int list_count(struct list_head *head) {
+	struct list_head *pln;
+	unsigned long long int numItems = 0;
+	
+	list_for_each(pln, head) {
+		numItems++;
+	}
+	return numItems;
+}
+*/
+
+static ssize_t fuse_conn_queue_lengths_read(struct file *file,
+					char __user *buf, size_t len,
+					loff_t *ppos)
+{
+	struct fuse_conn *fc;
+	unsigned long long int bg_length, pending_length, processing_length;
+	
+	fc = fuse_ctl_file_conn_get(file);
+	bg_length = fc->max_bg_count;
+	pending_length = fc->max_pending_count;
+	processing_length = fc->max_processing_count;
+	fuse_conn_put(fc);
+	return fuse_conn_limit_reads(file, buf, len, ppos, bg_length, pending_length, processing_length);
 }
 
 static const struct file_operations fuse_ctl_abort_ops = {
@@ -414,6 +451,13 @@ static const struct file_operations fuse_conn_pending_queue_requests_timings_ops
 static const struct file_operations fuse_conn_processing_queue_requests_timings_ops = {
         .open = nonseekable_open,
         .read = fuse_conn_processing_queue_request_timing_read,
+        .write = NULL,
+        .llseek = no_llseek,
+};
+
+static const struct file_operations fuse_conn_queue_lengths_ops = {
+        .open = nonseekable_open,
+        .read = fuse_conn_queue_lengths_read,
         .write = NULL,
         .llseek = no_llseek,
 };
@@ -490,7 +534,11 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
                                  &fuse_conn_pending_queue_requests_timings_ops) ||
 	    !fuse_ctl_add_dentry(parent, fc, "processing_queue_requests_timings",
                                  S_IFREG | 0600, 1, NULL,
-                                 &fuse_conn_processing_queue_requests_timings_ops))
+                                 &fuse_conn_processing_queue_requests_timings_ops) ||
+	    !fuse_ctl_add_dentry(parent, fc, "queue_lengths",
+                                 S_IFREG | 0600, 1, NULL,
+                                 &fuse_conn_queue_lengths_ops))
+
 		goto err;
 
 	return 0;

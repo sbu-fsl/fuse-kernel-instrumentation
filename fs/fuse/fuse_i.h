@@ -33,7 +33,7 @@
 #define FUSE_NAME_MAX 1024
 
 /** Number of dentries for each connection in the control filesystem */
-#define FUSE_CTL_NUM_DENTRIES 8
+#define FUSE_CTL_NUM_DENTRIES 9
 
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
@@ -619,10 +619,22 @@ struct fuse_conn {
 	/** Read/write semaphore to hold when accessing sb. */
 	struct rw_semaphore killsb;
 
+	/*For tracking the background queue length*/
+	long long unsigned int bg_count;
+	long long unsigned int max_bg_count;
+
+	/*For tracking the pending queue length*/
+	long long unsigned int pending_count;
+	long long unsigned int max_pending_count;
+
+	/*For tracking the processing queue length*/
+	long long unsigned int processing_count;
+	long long unsigned int max_processing_count;
+
 	/*For tracking the requests and their timings*/
-	int req_type_bg[46][15];
-	int req_type_pending[46][15];
-	int req_type_processing[46][15];
+	long long unsigned int req_type_bg[46][15];
+	long long unsigned int req_type_pending[46][15];
+	long long unsigned int req_type_processing[46][15];
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
