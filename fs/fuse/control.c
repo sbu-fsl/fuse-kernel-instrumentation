@@ -85,6 +85,7 @@ static ssize_t fuse_conn_limit_reads(struct file *file, char __user *buf,
         return simple_read_from_buffer(buf, len, ppos, tmp, size);
 }
 
+/*
 static ssize_t fuse_conn_writeback_reads(struct file *file, char __user *buf,
 					size_t len, loff_t *ppos, unsigned long long int val1,
 					unsigned long long int val2)
@@ -94,6 +95,7 @@ static ssize_t fuse_conn_writeback_reads(struct file *file, char __user *buf,
 	size_t size = sprintf(tmp, "%llu\n%llu\n", val1, val2);
 	return simple_read_from_buffer(buf, len, ppos, tmp, size);
 }
+*/
 
 static ssize_t fuse_conn_limit_write(struct file *file, const char __user *buf,
 				     size_t count, loff_t *ppos, unsigned *val,
@@ -411,18 +413,37 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 						loff_t *ppos)
 {
 	struct fuse_conn *fc;
-	unsigned long long int complete_reqs;
-	unsigned long long int incomplete_reqs;
+	char tmp[1536], number[64];
+	int i, count = 0, ret;
+	size_t size;
 
 	fc = fuse_ctl_file_conn_get(file);
 	if (!fc)
                 return 0;
 
-	complete_reqs = fc->complete_reqs;
-	incomplete_reqs = fc->incomplete_reqs;
+	if (*ppos != 0) {
+		fuse_conn_put(fc);
+		return 0;
+	}
 
+	tmp[0] = '\0';
+	number[0] = '\0';
+	for (i = 0; i < 15; i++) {
+		size = sprintf(number, "%llu\n", fc->pages_reqs[i]);
+		strcat(tmp, number);
+	}
+	size = sprintf(number, "%llu\n", fc->complete_reqs);
+	strcat(tmp, number);
+	size = sprintf(number, "%llu\n", fc->incomplete_reqs);
+	strcat(tmp, number);
 	fuse_conn_put(fc);
-	return fuse_conn_writeback_reads(file, buf, len, ppos, complete_reqs, incomplete_reqs);
+	count = strlen(tmp);
+	ret = copy_to_user(buf, tmp, count);
+	if (ret == count)
+		return -EFAULT;
+	count -= ret;
+	*ppos = *ppos + count;
+	return count;
 }
 
 /*

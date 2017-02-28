@@ -22,6 +22,20 @@
 
 static const struct file_operations fuse_direct_io_file_operations;
 
+static void update_pages_req(struct fuse_conn *fc, struct fuse_req *req) {
+	unsigned num_pages;
+	int i;
+
+	num_pages = req->num_pages;
+	for (i = 1; i < 16; i++) {
+		if (num_pages>>i == 0) {
+			fc->pages_reqs[i-1] +=1;
+			return ;
+		}
+	}
+}
+
+
 static int fuse_send_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 			  int opcode, struct fuse_open_out *outargp)
 {
@@ -1776,6 +1790,7 @@ static int fuse_writepages_fill(struct page *page,
 	struct page *tmp_page;
 	bool is_writeback;
 	int err;
+	int num_pages;
 
 	if (!data->ff) {
 		err = -EIO;
@@ -1796,6 +1811,7 @@ static int fuse_writepages_fill(struct page *page,
 	    (is_writeback || req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
 	     (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write ||
 	     data->orig_pages[req->num_pages - 1]->index + 1 != page->index)) {
+		update_pages_req(fc, req);
 		if ((req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write)
 			fc->complete_reqs++;
 		else
@@ -1825,7 +1841,8 @@ static int fuse_writepages_fill(struct page *page,
 		struct fuse_inode *fi = get_fuse_inode(inode);
 
 		err = -ENOMEM;
-		req = fuse_request_alloc_nofs(FUSE_MAX_PAGES_PER_REQ);
+		num_pages = min((int)((fc->max_write >> PAGE_SHIFT)+1), (int)FUSE_MAX_PAGES_PER_REQ);
+		req = fuse_request_alloc_nofs(num_pages);
 		if (!req) {
 			__free_page(tmp_page);
 			goto out_unlock;
@@ -1885,7 +1902,8 @@ static int fuse_writepages(struct address_space *mapping,
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_fill_wb_data data;
 	int err;
-		
+	int num_pages;
+	
 	err = -EIO;
 	if (is_bad_inode(inode))
 		goto out;
@@ -1895,7 +1913,8 @@ static int fuse_writepages(struct address_space *mapping,
 	data.ff = NULL;
 
 	err = -ENOMEM;
-	data.orig_pages = kcalloc(FUSE_MAX_PAGES_PER_REQ,
+	num_pages = min((int)((fc->max_write >> PAGE_SHIFT)+1), (int)FUSE_MAX_PAGES_PER_REQ);
+	data.orig_pages = kcalloc(num_pages,
 				  sizeof(struct page *),
 				  GFP_NOFS);
 	if (!data.orig_pages)
@@ -1905,6 +1924,7 @@ static int fuse_writepages(struct address_space *mapping,
 	if (data.req) {
 		/* Ignore errors if we can write at least one page */
 		BUG_ON(!data.req->num_pages);
+		update_pages_req(fc, data.req);
 		if ((data.req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write)
 			fc->complete_reqs++;
 		else

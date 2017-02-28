@@ -647,6 +647,7 @@ struct fuse_conn {
 	/*For tracking Number of pages in each FUSE_WRITE req incase of writeback_cache*/
 	long long unsigned int complete_reqs; /*FUSE write reqs num pages equals max_writes*/
 	long long unsigned int incomplete_reqs; /*FUSE write reqs num pages not equals max_writes*/
+	long long unsigned int pages_reqs[15]; /*Pages per write Request distributions*/
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)
