@@ -491,14 +491,23 @@ static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 	bg_entered = fc->bg_entered;
 	bg_removed = fc->bg_removed;
 	bg_max = fc->max_bg_count;
+	fc->bg_entered = 0;
+	fc->bg_removed = 0;
+	fc->max_bg_count = 0;
 
 	pending_entered = fc->pending_entered;
 	pending_removed = fc->pending_removed;
 	pending_max = fc->max_pending_count;
+	fc->pending_entered = 0;
+	fc->pending_removed = 0;
+	fc->max_pending_count = 0;
 
 	processing_entered = fc->processing_entered;
 	processing_removed = fc->processing_removed;
 	processing_max = fc->max_processing_count;
+	fc->processing_entered = 0;
+	fc->processing_removed = 0;
+	fc->max_processing_count = 0;
 
 	spin_unlock(&fc->lock);
 	fuse_conn_put(fc);
