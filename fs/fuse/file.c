@@ -22,14 +22,12 @@
 
 static const struct file_operations fuse_direct_io_file_operations;
 
-static void update_pages_req(struct fuse_conn *fc, struct fuse_req *req) {
-	unsigned num_pages;
+static void update_pages_req(struct fuse_conn *fc, unsigned num_pages) {
 	int i;
 
-	num_pages = req->num_pages;
 	for (i = 1; i < 16; i++) {
 		if (num_pages>>i == 0) {
-			fc->pages_reqs[i-1] +=1;
+			fc->pages_reqs[i-1] += 1;
 			return ;
 		}
 	}
@@ -1811,11 +1809,13 @@ static int fuse_writepages_fill(struct page *page,
 	    (is_writeback || req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
 	     (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write ||
 	     data->orig_pages[req->num_pages - 1]->index + 1 != page->index)) {
-		update_pages_req(fc, req);
+		spin_lock(&fc->lock);
+		update_pages_req(fc, req->num_pages);
 		if ((req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write)
 			fc->complete_reqs++;
 		else
 			fc->incomplete_reqs++;
+		spin_unlock(&fc->lock);
 		fuse_writepages_send(data);
 		data->req = NULL;
 	}
@@ -1924,11 +1924,13 @@ static int fuse_writepages(struct address_space *mapping,
 	if (data.req) {
 		/* Ignore errors if we can write at least one page */
 		BUG_ON(!data.req->num_pages);
-		update_pages_req(fc, data.req);
+		spin_lock(&fc->lock);
+		update_pages_req(fc, data.req->num_pages);
 		if ((data.req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write)
 			fc->complete_reqs++;
 		else
 			fc->incomplete_reqs++;
+		spin_unlock(&fc->lock);
 		fuse_writepages_send(&data);
 		err = 0;
 	}

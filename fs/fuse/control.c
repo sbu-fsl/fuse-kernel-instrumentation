@@ -201,66 +201,72 @@ static ssize_t fuse_conn_background_queue_request_timing_read(struct file *file,
                                                    char __user *buf, size_t len,
                                                    loff_t *ppos)
 {
-        struct fuse_conn *fc;
-	char tmp[1536], line[256], number[64];
-	int available = 1536, i, j, starting_index = -1, count = 0, ret;
+	struct fuse_conn *fc;
+	int i, j, available = 0, counter = 0, count, ret;
 	size_t size;
+	char val[24], *tmp = NULL;
+
+	if (*ppos != 0)
+		return 0;
 
 	fc = fuse_ctl_file_conn_get(file);
-        if (!fc)
-                return 0;
+	if (!fc)
+		return 0;
+
+	counter++;
+	tmp = (char *) kmalloc(counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+	if (!tmp) {
+		fuse_conn_put(fc);
+		return -ENOMEM;
+	}
+	tmp[0] = '\0';
+	memset(val, 0, 24);
+	available += PAGE_SIZE;
 
 	spin_lock(&fc->lock);
-	if (*ppos == 0) {
-                starting_index = 1;
-        } else {
-                line[0] = '\0';
-                for (i = 1; i < 46; i++) {
-                        for (j = 0; j < 33; j++) {
-                                size = sprintf(number, "%llu ", fc->req_type_bg[i][j]);
-                                strcat(line, number);
-                        }
-                        size = strlen(line);
-                        if (count < *ppos)
-                                count = count + (size + 1);
-                        else {
-                                starting_index = i;
-                                goto out1;
-                        }
-                        line[0] = '\0';
-                }
-        }
-out1 :
-        if (starting_index == -1) {
-		spin_unlock(&fc->lock);
-		fuse_conn_put(fc);
-                return 0;
+	for (i = 1; i < 46; i++) {
+		for (j = 0; j < 33; j++) {
+			size = sprintf(val, "%llu ", fc->req_type_bg[i][j]);
+			if (size <= available) {
+				strcat(tmp, val);
+				available -= size;
+			} else {
+				counter++;
+				tmp = (char *)krealloc(tmp, counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+				if (!tmp) {
+					spin_unlock(&fc->lock);
+					fuse_conn_put(fc);
+					return -ENOMEM;
+				}
+				available += PAGE_SIZE;
+				strcat(tmp, val);
+				available -= size;
+			}
+		}
+		if (1 <= available) {
+			strcat(tmp, "\n");
+			available -= 1;
+		} else {
+			counter++;
+			tmp = (char *)krealloc(tmp, counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+			if (!tmp) {
+				spin_unlock(&fc->lock);
+				fuse_conn_put(fc);
+				return -ENOMEM;
+			}
+			available += PAGE_SIZE;
+			strcat(tmp, "\n");
+			available -= 1;
+		}
 	}
-        tmp[0] = '\0';
-        line[0] = '\0';
-        for (i = starting_index; i < 46; i++) {
-                for (j = 0; j < 33; j++) {
-                        sprintf(number, "%llu ", fc->req_type_bg[i][j]);
-                        strcat(line, number);
-                }
-                size = strlen(line);
-                if (size+1 <= available) {
-                        strcat(tmp, line);
-                        available = available - size;
-                        strcat(tmp, "\n");
-                        available = available - 1;
-                } else {
-                        goto out;
-                }
-                line[0] = '\0';
-        }
-
-out:
 	spin_unlock(&fc->lock);
-        fuse_conn_put(fc);
+	fuse_conn_put(fc);
+
 	count = strlen(tmp);
 	ret = copy_to_user(buf, tmp, count);
-	if (ret == count)
+	if (tmp)
+		kfree(tmp);
+	if (ret != 0)
 		return -EFAULT;
 	count -= ret;
 	*ppos = *ppos + count;
@@ -271,175 +277,195 @@ static ssize_t fuse_conn_pending_queue_request_timing_read(struct file *file,
                                                    char __user *buf, size_t len,
                                                    loff_t *ppos)
 {
-        struct fuse_conn *fc;
-        char tmp[1536], line[256], number[64];
-        int available = 1536, i, j, starting_index = -1, count = 0, ret;
-        size_t size;
+	struct fuse_conn *fc;
+	int i, j, available = 0, counter = 0, count, ret;
+	size_t size;
+	char val[24], *tmp = NULL;
 
-        fc = fuse_ctl_file_conn_get(file);
-        if (!fc)
-                return 0;
+	if (*ppos != 0)
+		return 0;
+
+	fc = fuse_ctl_file_conn_get(file);
+	if (!fc)
+		return 0;
+
+	counter++;
+	tmp = (char *) kmalloc(counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+	if (!tmp) {
+		fuse_conn_put(fc);
+		return -ENOMEM;
+	}
+	tmp[0] = '\0';
+	memset(val, 0, 24);
+	available += PAGE_SIZE;
 
 	spin_lock(&fc->lock);
-        if (*ppos == 0) {
-                starting_index = 1;
-        } else {
-                line[0] = '\0';
-                for (i = 1; i < 46; i++) {
-                        for (j = 0; j < 33; j++) {
-                                size = sprintf(number, "%llu ", fc->req_type_pending[i][j]);
-                                strcat(line, number);
-                        }
-                        size = strlen(line);
-                        if (count < *ppos)
-                                count = count + (size + 1);
-                        else {
-                                starting_index = i;
-                                goto out1;
-                        }
-                        line[0] = '\0';
-                }
-        }
-out1 :
-        if (starting_index == -1) {
-		spin_unlock(&fc->lock);
-                fuse_conn_put(fc);
-                return 0;
-        }
-        tmp[0] = '\0';
-        line[0] = '\0';
-        for (i = starting_index; i < 46; i++) {
-                for (j = 0; j < 33; j++) {
-                        sprintf(number, "%llu ", fc->req_type_pending[i][j]);
-                        strcat(line, number);
-                }
-                size = strlen(line);
-                if (size+1 <= available) {
-                        strcat(tmp, line);
-                        available = available - size;
-                        strcat(tmp, "\n");
-                        available = available - 1;
-                } else {
-                        goto out;
-                }
-                line[0] = '\0';
-        }
-
-out:
+	for (i = 1; i < 46; i++) {
+		for (j = 0; j < 33; j++) {
+			size = sprintf(val, "%llu ", fc->req_type_pending[i][j]);
+			if (size <= available) {
+				strcat(tmp, val);
+				available -= size;
+			} else {
+				counter++;
+				tmp = (char *)krealloc(tmp, counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+				if (!tmp) {
+					spin_unlock(&fc->lock);
+					fuse_conn_put(fc);
+					return -ENOMEM;
+				}
+				available += PAGE_SIZE;
+				strcat(tmp, val);
+				available -= size;
+			}
+		}
+		if (1 <= available) {
+			strcat(tmp, "\n");
+			available -= 1;
+		} else {
+			counter++;
+			tmp = (char *)krealloc(tmp, counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+			if (!tmp) {
+				spin_unlock(&fc->lock);
+				fuse_conn_put(fc);
+				return -ENOMEM;
+			}
+			available += PAGE_SIZE;
+			strcat(tmp, "\n");
+			available -= 1;
+		}
+	}
 	spin_unlock(&fc->lock);
-        fuse_conn_put(fc);
-        count = strlen(tmp);
-        ret = copy_to_user(buf, tmp, count);
-        if (ret == count)
-                return -EFAULT;
-        count -= ret;
-        *ppos = *ppos + count;
-        return count;
+	fuse_conn_put(fc);
+
+	count = strlen(tmp);
+	ret = copy_to_user(buf, tmp, count);
+	if (tmp)
+		kfree(tmp);
+	if (ret != 0)
+		return -EFAULT;
+	count -= ret;
+	*ppos = *ppos + count;
+	return count;
 }
 
 static ssize_t fuse_conn_processing_queue_request_timing_read(struct file *file,
                                                    char __user *buf, size_t len,
                                                    loff_t *ppos)
 {
-        struct fuse_conn *fc;
-        char tmp[1536], line[256], number[64];
-        int available = 1536, i, j, starting_index = -1, count = 0, ret;
-        size_t size;
+	struct fuse_conn *fc;
+	int i, j, available = 0, counter = 0, count, ret;
+	size_t size;
+	char val[24], *tmp = NULL;
 
-        fc = fuse_ctl_file_conn_get(file);
-        if (!fc)
-                return 0;
+	if (*ppos != 0)
+		return 0;
+
+	fc = fuse_ctl_file_conn_get(file);
+	if (!fc)
+		return 0;
+
+	counter++;
+	tmp = (char *) kmalloc(counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+	if (!tmp) {
+		fuse_conn_put(fc);
+		return -ENOMEM;
+	}
+	tmp[0] = '\0';
+	memset(val, 0, 24);
+	available += PAGE_SIZE;
 
 	spin_lock(&fc->lock);
-        if (*ppos == 0) {
-                starting_index = 1;
-        } else {
-                line[0] = '\0';
-                for (i = 1; i < 46; i++) {
-                        for (j = 0; j < 33; j++) {
-                                size = sprintf(number, "%llu ", fc->req_type_processing[i][j]);
-                                strcat(line, number);
-                        }
-                        size = strlen(line);
-                        if (count < *ppos)
-                                count = count + (size + 1);
-                        else {
-                                starting_index = i;
-                                goto out1;
-                        }
-                        line[0] = '\0';
-                }
-        }
-out1 :
-        if (starting_index == -1) {
-		spin_unlock(&fc->lock);
-                fuse_conn_put(fc);
-                return 0;
-        }
-        tmp[0] = '\0';
-        line[0] = '\0';
-        for (i = starting_index; i < 46; i++) {
-                for (j = 0; j < 33; j++) {
-                        sprintf(number, "%llu ", fc->req_type_processing[i][j]);
-                        strcat(line, number);
-                }
-                size = strlen(line);
-                if (size+1 <= available) {
-                        strcat(tmp, line);
-                        available = available - size;
-                        strcat(tmp, "\n");
-                        available = available - 1;
-                } else {
-                        goto out;
-                }
-                line[0] = '\0';
-        }
-
-out:
+	for (i = 1; i < 46; i++) {
+		for (j = 0; j < 33; j++) {
+			size = sprintf(val, "%llu ", fc->req_type_processing[i][j]);
+			if (size <= available) {
+				strcat(tmp, val);
+				available -= size;
+			} else {
+				counter++;
+				tmp = (char *)krealloc(tmp, counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+				if (!tmp) {
+					spin_unlock(&fc->lock);
+					fuse_conn_put(fc);
+					return -ENOMEM;
+				}
+				available += PAGE_SIZE;
+				strcat(tmp, val);
+				available -= size;
+			}
+		}
+		if (1 <= available) {
+			strcat(tmp, "\n");
+			available -= 1;
+		} else {
+			counter++;
+			tmp = (char *)krealloc(tmp, counter * PAGE_SIZE * sizeof(char), GFP_KERNEL);
+			if (!tmp) {
+				spin_unlock(&fc->lock);
+				fuse_conn_put(fc);
+				return -ENOMEM;
+			}
+			available += PAGE_SIZE;
+			strcat(tmp, "\n");
+			available -= 1;
+		}
+	}
 	spin_unlock(&fc->lock);
-        fuse_conn_put(fc);
-        count = strlen(tmp);
-        ret = copy_to_user(buf, tmp, count);
-        if (ret == count)
-                return -EFAULT;
-        count -= ret;
-        *ppos = *ppos + count;
-        return count;
+	fuse_conn_put(fc);
+
+	count = strlen(tmp);
+	ret = copy_to_user(buf, tmp, count);
+	if (tmp)
+		kfree(tmp);
+	if (ret != 0)
+		return -EFAULT;
+	count -= ret;
+	*ppos = *ppos + count;
+	return count;
 }
 
-/*No locks*/
 static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 						char __user *buf, size_t len,
 						loff_t *ppos)
 {
 	struct fuse_conn *fc;
-	char tmp[1536], number[64];
-	int i, count = 0, ret;
+	int i, count, ret;
 	size_t size;
+	char val[24], *tmp = NULL;
+
+	if (*ppos != 0)
+		return 0;
 
 	fc = fuse_ctl_file_conn_get(file);
 	if (!fc)
-                return 0;
-
-	if (*ppos != 0) {
-		fuse_conn_put(fc);
 		return 0;
-	}
 
-	tmp[0] = '\0';
-	number[0] = '\0';
-	for (i = 0; i < 15; i++) {
-		size = sprintf(number, "%llu\n", fc->pages_reqs[i]);
-		strcat(tmp, number);
+	tmp = (char *)kmalloc(PAGE_SIZE * sizeof(char), GFP_KERNEL);
+	if (!tmp) {
+		fuse_conn_put(fc);
+		return -ENOMEM;
 	}
-	size = sprintf(number, "%llu\n", fc->complete_reqs);
-	strcat(tmp, number);
-	size = sprintf(number, "%llu\n", fc->incomplete_reqs);
-	strcat(tmp, number);
+	tmp[0] = '\0';
+	memset(val, 0, 24);
+
+	spin_lock(&fc->lock);
+	for (i = 0; i < 15; i++) {
+		size = sprintf(val, "%llu\n", fc->pages_reqs[i]);
+		strcat(tmp, val);
+	}
+	size = sprintf(val, "%llu\n", fc->complete_reqs);
+	strcat(tmp, val);
+	size = sprintf(val, "%llu\n", fc->incomplete_reqs);
+	strcat(tmp, val);
+	spin_unlock(&fc->lock);
 	fuse_conn_put(fc);
+	
 	count = strlen(tmp);
 	ret = copy_to_user(buf, tmp, count);
-	if (ret == count)
+	if (tmp)
+		kfree(tmp);
+	if (ret != 0)
 		return -EFAULT;
 	count -= ret;
 	*ppos = *ppos + count;
@@ -464,7 +490,7 @@ static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 {
 	struct fuse_conn *fc;
 	unsigned long long int bg_entered, bg_removed, bg_max, pending_entered, pending_removed, pending_max, processing_entered, processing_removed, processing_max;
-	
+		
 	fc = fuse_ctl_file_conn_get(file);
 	spin_lock(&fc->lock);
 	bg_entered = fc->bg_entered;
