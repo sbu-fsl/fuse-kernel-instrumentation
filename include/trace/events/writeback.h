@@ -759,6 +759,40 @@ TRACE_EVENT(wb_do_writeback,
         )
 );
 
+TRACE_EVENT(balance_dirty_pages_pause_start,
+
+	TP_PROTO(long pause),
+
+	TP_ARGS(pause),
+
+	TP_STRUCT__entry(	
+		__field(long, pause)
+	),
+
+	TP_fast_assign(
+		__entry->pause = pause;
+	),
+
+	TP_printk("pause : %ld", __entry->pause)
+);
+
+TRACE_EVENT(balance_dirty_pages_pause_end,
+
+        TP_PROTO(long pause),
+
+        TP_ARGS(pause),
+
+        TP_STRUCT__entry(       
+                __field(long, pause)
+        ),
+
+        TP_fast_assign(
+		__entry->pause = pause;
+        ),
+
+        TP_printk("pause : %ld", __entry->pause)
+);
+
 TRACE_EVENT(balance_dirty_pages,
 
 	TP_PROTO(struct backing_dev_info *bdi,

@@ -2536,7 +2536,15 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = inode_to_bdi(inode);
+
+	if (current->backing_dev_info && current->backing_dev_info->name && (strcmp(current->backing_dev_info->name, "fuse") == 0))
+		trace_filemap_getxattr_start(iocb->ki_pos);
+
 	err = file_remove_suid(file);
+	
+	if (current->backing_dev_info && current->backing_dev_info->name && (strcmp(current->backing_dev_info->name, "fuse") == 0))
+		trace_filemap_getxattr_end(iocb->ki_pos);
+
 	if (err)
 		goto out;
 

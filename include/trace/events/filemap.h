@@ -42,6 +42,42 @@ DECLARE_EVENT_CLASS(mm_filemap_op_page_cache,
 		__entry->index << PAGE_SHIFT)
 );
 
+TRACE_EVENT(filemap_getxattr_start,
+
+        TP_PROTO(long long int pos),
+
+        TP_ARGS(pos),
+
+        TP_STRUCT__entry(
+                __field(long long int, pos)
+        ),
+
+        TP_fast_assign(
+                __entry->pos	= pos;
+        ),
+
+        TP_printk("I/O starting Position : %lld ",
+                __entry->pos)
+);
+
+TRACE_EVENT(filemap_getxattr_end,
+
+        TP_PROTO(long long int pos),
+
+        TP_ARGS(pos),
+
+        TP_STRUCT__entry(
+                __field(long long int, pos)
+        ),
+
+        TP_fast_assign(
+                __entry->pos    = pos;
+        ),
+
+        TP_printk("I/O starting Position : %lld ",
+                __entry->pos)
+);
+
 DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_delete_from_page_cache,
 	TP_PROTO(struct page *page),
 	TP_ARGS(page)

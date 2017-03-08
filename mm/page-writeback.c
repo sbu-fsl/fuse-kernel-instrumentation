@@ -1512,7 +1512,14 @@ pause:
 						  pause,
 						  start_time);
 		__set_current_state(TASK_KILLABLE);
+
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_balance_dirty_pages_pause_start(pause);
+
 		io_schedule_timeout(pause);
+
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_balance_dirty_pages_pause_end(pause);
 
 		current->dirty_paused_when = now + pause;
 		current->nr_dirtied = 0;
