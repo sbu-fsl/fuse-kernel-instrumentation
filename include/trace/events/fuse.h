@@ -29,6 +29,82 @@ TRACE_EVENT(queue_lengths,
 		__entry->bg_length, __entry->pending_length, __entry->processing_length)
 );
 
+TRACE_EVENT(fuse_read_difference,
+
+	TP_PROTO(unsigned long long int inode, long int time_diff),
+
+	TP_ARGS(inode, time_diff),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+		__field(long int, time_diff)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+		__entry->time_diff	= time_diff;
+	),
+
+	TP_printk("Fuse Read on inode : %llu time diff : %ld", __entry->inode, __entry->time_diff)
+);
+
+TRACE_EVENT(bg_queue_difference,
+
+	TP_PROTO(unsigned long long int inode, long int time_diff),
+
+	TP_ARGS(inode, time_diff),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+		__field(long int, time_diff)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+		__entry->time_diff	= time_diff;
+	),
+
+	TP_printk("Bg Queue on inode : %llu time diff : %ld", __entry->inode, __entry->time_diff)
+);
+
+TRACE_EVENT(pending_queue_difference,
+
+	TP_PROTO(unsigned long long int inode, long int time_diff),
+
+	TP_ARGS(inode, time_diff),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+		__field(long int, time_diff)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+		__entry->time_diff	= time_diff;
+	),
+
+	TP_printk("Pending Queue on inode : %llu time diff : %ld", __entry->inode, __entry->time_diff)
+);
+
+TRACE_EVENT(processing_queue_difference,
+
+	TP_PROTO(unsigned long long int inode, long int time_diff),
+
+	TP_ARGS(inode, time_diff),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+		__field(long int, time_diff)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+		__entry->time_diff	= time_diff;
+	),
+
+	TP_printk("Processing Queue on inode : %llu time diff : %ld", __entry->inode, __entry->time_diff)
+);
+
 TRACE_EVENT(fuse_write_begin_page_alloc_start,
 
         TP_PROTO(pgoff_t index, unsigned len),

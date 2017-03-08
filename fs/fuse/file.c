@@ -293,7 +293,12 @@ void fuse_release_common(struct file *file, int opcode)
 
 static int fuse_open(struct inode *inode, struct file *file)
 {
-	return fuse_open_common(inode, file, false);
+	int ret;
+
+	//get_node_id(inode)
+	//printk("FUSE Open called on inode number : %llu\n", get_node_id(inode));
+	ret = fuse_open_common(inode, file, false);
+	return ret;
 }
 
 static int fuse_release(struct inode *inode, struct file *file)
@@ -918,8 +923,13 @@ static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct timespec start, end;
+	long time;
+	long time_sec;
+	ssize_t ret;
 
-	/* put read iter count increment */
+	getnstimeofday(&start);
+	//printk("Read Start on inode %llu at : %ld\n", get_node_id(inode), (start.tv_sec * 1000000000) + start.tv_nsec);
 	/*
 	 * In auto invalidate mode, always update attributes on read.
 	 * Otherwise, only update if we attempt to read past EOF (to ensure
@@ -932,8 +942,16 @@ static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		if (err)
 			return err;
 	}
-
-	return generic_file_read_iter(iocb, to);
+	ret = generic_file_read_iter(iocb, to);
+	getnstimeofday(&end);
+	//printk("Read End on inode %llu at : %ld\n", get_node_id(inode), (end.tv_sec * 1000000000) + end.tv_nsec);
+	time_sec = end.tv_sec - start.tv_sec;
+	time = end.tv_nsec - start.tv_nsec;
+	time_sec *= 1000000000;
+	time += time_sec;
+	//printk("Read fuse inode : %llu diff : %ld", get_node_id(inode), time);
+	trace_fuse_read_difference(get_node_id(inode), time);
+	return ret;
 }
 
 static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,

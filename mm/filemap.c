@@ -1689,10 +1689,15 @@ ssize_t
 generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
 	ssize_t retval = 0;
 	loff_t *ppos = &iocb->ki_pos;
 	loff_t pos = *ppos;
+	struct timespec start, end;
+	long time;
+	long time_sec;
 
+	getnstimeofday(&start);
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
@@ -1732,6 +1737,15 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	retval = do_generic_file_read(file, ppos, iter, retval);
 out:
+	getnstimeofday(&end);
+	/* difference only in case of ext4 */
+	if (inode->i_sb->s_magic == 61267) {
+		time_sec = end.tv_sec - start.tv_sec;
+		time = end.tv_nsec - start.tv_nsec;
+		time_sec *= 1000000000;
+		time += time_sec;
+		trace_filemap_generic_read_iter_difference(inode->i_ino, time);	
+	}
 	return retval;
 }
 EXPORT_SYMBOL(generic_file_read_iter);

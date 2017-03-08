@@ -78,6 +78,25 @@ TRACE_EVENT(filemap_getxattr_end,
                 __entry->pos)
 );
 
+TRACE_EVENT(filemap_generic_read_iter_difference,
+
+	TP_PROTO(unsigned long long int inode, long int time_diff),
+
+	TP_ARGS(inode, time_diff),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+		__field(long int, time_diff)
+	),
+
+	TP_fast_assign(
+		__entry->inode          = inode;
+		__entry->time_diff      = time_diff;
+	),
+
+	TP_printk("Generic Read on inode : %llu time diff : %ld", __entry->inode, __entry->time_diff)
+);
+
 DEFINE_EVENT(mm_filemap_op_page_cache, mm_filemap_delete_from_page_cache,
 	TP_PROTO(struct page *page),
 	TP_ARGS(page)

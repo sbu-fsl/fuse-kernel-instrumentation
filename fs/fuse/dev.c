@@ -19,6 +19,7 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/swap.h>
 #include <linux/splice.h>
+#include <trace/events/fuse.h>
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 MODULE_ALIAS("devname:fuse");
@@ -418,6 +419,9 @@ __releases(fc->lock)
 
 	struct timespec ts;
 	void (*end) (struct fuse_conn *, struct fuse_req *) = req->end;
+	long tmp_time;
+	long tmp_time_sec;
+
 	req->end = NULL;
 	list_del(&req->list);
 	list_del(&req->intr_entry);
@@ -450,12 +454,39 @@ __releases(fc->lock)
 //	printk("Request  : %d is ended by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
 //	printk("Unique id for req type : %d is %lld (completed)\n", req->in.h.opcode, req->in.h.unique);
 	spin_lock(&fc->lock);
-	if (req->bg_queue)
+	if (req->bg_queue) {
 		populate_time(fc, &(req->ts_bg), &(req->ts_pending), req->in.h.opcode, 0);
-	if (req->pending_queue)
+		if (req->in.h.opcode == FUSE_READ) {
+			tmp_time = (req->ts_pending).tv_nsec - (req->ts_bg).tv_nsec;
+			tmp_time_sec = (req->ts_pending).tv_sec - (req->ts_bg).tv_sec;
+			tmp_time_sec *= 1000000000;
+			tmp_time_sec += tmp_time;
+			//printk("BG Queue fuse inode : %llu diff : %ld\n", req->in.h.nodeid, tmp_time_sec);
+			trace_bg_queue_difference(req->in.h.nodeid, tmp_time_sec);
+		}
+	}
+	if (req->pending_queue) {
 		populate_time(fc, &(req->ts_pending), &(req->ts_processing), req->in.h.opcode, 1);
-	if (req->processing_queue)
+		if (req->in.h.opcode == FUSE_READ) {
+			tmp_time = (req->ts_processing).tv_nsec - (req->ts_pending).tv_nsec;
+			tmp_time_sec = (req->ts_processing).tv_sec - (req->ts_pending).tv_sec;
+			tmp_time_sec *= 1000000000;
+			tmp_time_sec += tmp_time;
+			//printk("Pending Queue fuse inode : %llu diff : %ld\n", req->in.h.nodeid, tmp_time_sec);
+			trace_pending_queue_difference(req->in.h.nodeid, tmp_time_sec);
+		}
+	}
+	if (req->processing_queue) {
 		populate_time(fc, &(req->ts_processing), &ts, req->in.h.opcode, 2);
+		if (req->in.h.opcode == FUSE_READ) {
+			tmp_time = (ts).tv_nsec - (req->ts_processing).tv_nsec;
+			tmp_time_sec = (ts).tv_sec - (req->ts_processing).tv_sec;
+			tmp_time_sec *= 1000000000;
+			tmp_time_sec += tmp_time;
+			//printk("Processing Queue fuse inode : %llu diff : %ld\n", req->in.h.nodeid, tmp_time_sec);
+			trace_processing_queue_difference(req->in.h.nodeid, tmp_time_sec);
+		}
+	}
 	spin_unlock(&fc->lock);
 	fuse_put_request(fc, req);
 }
