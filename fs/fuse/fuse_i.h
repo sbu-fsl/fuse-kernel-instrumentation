@@ -61,6 +61,8 @@ extern unsigned max_user_congthresh;
 /* One forget request */
 struct fuse_forget_link {
 	struct fuse_forget_one forget_one;
+	struct timespec ts_forget_strt;
+	struct timespec ts_forget_end;
 	struct fuse_forget_link *next;
 };
 

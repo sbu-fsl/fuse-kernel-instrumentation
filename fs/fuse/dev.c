@@ -375,6 +375,8 @@ void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
 
 	spin_lock(&fc->lock);
 	if (fc->connected) {
+		/* Track start time of forget request */
+		getnstimeofday(&(forget->ts_forget_strt));
 		fc->forget_list_tail->next = forget;
 		fc->forget_list_tail = forget;
 		wake_up(&fc->waitq);
@@ -1245,6 +1247,10 @@ __releases(fc->lock)
 	};
 
 	spin_unlock(&fc->lock);
+	/* Track end time of forget request */
+	getnstimeofday(&(forget->ts_forget_end));
+	/* Track as part of pending queue (even though it is forget queue)*/
+	populate_time(fc, &(forget->ts_forget_strt), &(forget->ts_forget_end), ih.opcode, 1);
 	kfree(forget);
 	if (nbytes < ih.len)
 		return -EINVAL;
@@ -1298,6 +1304,11 @@ __releases(fc->lock)
 					    sizeof(forget->forget_one));
 		}
 		head = forget->next;
+		/* Track end time of forget request */
+		getnstimeofday(&(forget->ts_forget_end));
+		/* Track as part of pending queue (even though it is forget queue)*/
+		populate_time(fc, &(forget->ts_forget_strt), &(forget->ts_forget_end), FUSE_FORGET, 1);
+
 		kfree(forget);
 	}
 
