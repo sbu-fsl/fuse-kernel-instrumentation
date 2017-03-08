@@ -627,22 +627,21 @@ struct fuse_conn {
 
 	/*Using the starting spin lock to protect the following*/
 	/*For tracking the background queue length*/
-/*
+
 	long long int bg_entered;
 	long long int bg_removed;
 	long long int max_bg_count; 
-*/
 
 	/*For tracking the pending queue length*/
-/*	long long int pending_entered;
+	long long int pending_entered;
 	long long int pending_removed;
 	long long int max_pending_count;
-*/
+
 	/*For tracking the processing queue length*/
-/*	long long int processing_entered;
+	long long int processing_entered;
 	long long int processing_removed;
 	long long int max_processing_count;
-*/
+
 	/*For tracking the requests and their timings*/
 	long long unsigned int req_type_bg[46][33];
 	long long unsigned int req_type_pending[46][33];

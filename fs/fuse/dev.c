@@ -356,8 +356,8 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 	req->pending_queue = 1;
 	getnstimeofday(&(req->ts_pending));
 //	printk("Request  : %d is added to PENDING QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
-//	fc->pending_entered++;
-//	fc->max_pending_count = ((fc->pending_entered - fc->pending_removed) > fc->max_pending_count) ? (fc->pending_entered - fc->pending_removed) : fc->max_pending_count;
+	fc->pending_entered++;
+	fc->max_pending_count = ((fc->pending_entered - fc->pending_removed) > fc->max_pending_count) ? (fc->pending_entered - fc->pending_removed) : fc->max_pending_count;
 	list_add_tail(&req->list, &fc->pending);
 	req->state = FUSE_REQ_PENDING;
 	if (!req->waiting) {
@@ -396,7 +396,7 @@ static void flush_bg_queue(struct fuse_conn *fc)
 
 		req = list_entry(fc->bg_queue.next, struct fuse_req, list);
 		list_del(&req->list);
-//		fc->bg_removed++;
+		fc->bg_removed++;
 		fc->active_background++;
 		req->in.h.unique = fuse_get_unique(fc);
 		queue_request(fc, req);
@@ -425,7 +425,7 @@ __releases(fc->lock)
 	req->end = NULL;
 	list_del(&req->list);
 	list_del(&req->intr_entry);
-//	fc->processing_removed++;
+	fc->processing_removed++;
 	req->state = FUSE_REQ_FINISHED;
 	if (req->background) {
 		req->background = 0;
@@ -487,6 +487,12 @@ __releases(fc->lock)
 			trace_processing_queue_difference(req->in.h.nodeid, tmp_time_sec);
 		}
 	}
+	/* trace the max queue lengths */
+	trace_queue_lengths(fc->max_bg_count, fc->max_pending_count, fc->max_processing_count);
+	fc->max_bg_count = 0;
+	fc->max_pending_count = 0;
+	fc->max_processing_count = 0;
+
 	spin_unlock(&fc->lock);
 	fuse_put_request(fc, req);
 }
@@ -699,8 +705,8 @@ static void fuse_request_send_nowait_locked(struct fuse_conn *fc,
 	req->bg_queue = 1;
 	getnstimeofday(&(req->ts_bg));
 //	printk("Request : %d is added to BG QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
-//	fc->bg_entered++;
-//	fc->max_bg_count = ((fc->bg_entered - fc->bg_removed) > fc->max_bg_count) ? (fc->bg_entered - fc->bg_removed) : fc->max_bg_count;
+	fc->bg_entered++;
+	fc->max_bg_count = ((fc->bg_entered - fc->bg_removed) > fc->max_bg_count) ? (fc->bg_entered - fc->bg_removed) : fc->max_bg_count;
 	list_add_tail(&req->list, &fc->bg_queue);
 	flush_bg_queue(fc);
 }
@@ -1448,9 +1454,9 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 //		printk("Unique id for req type : %d is %lld (before processing)\n", req->in.h.opcode, req->in.h.unique);
 		getnstimeofday(&(req->ts_processing));
 //		printk("Request : %d is moved to PROCESSING QUEUE by PID : %d and NAME : %s\n", (int) req->in.h.opcode, (int) task_pid_nr(current), current->comm);
-//		fc->pending_removed++;
-//		fc->processing_entered++;
-//		fc->max_processing_count = ((fc->processing_entered - fc->processing_removed) > fc->max_processing_count) ? (fc->processing_entered - fc->processing_removed) : fc->max_processing_count;
+		fc->pending_removed++;
+		fc->processing_entered++;
+		fc->max_processing_count = ((fc->processing_entered - fc->processing_removed) > fc->max_processing_count) ? (fc->processing_entered - fc->processing_removed) : fc->max_processing_count;
 		list_move_tail(&req->list, &fc->processing);
 		if (req->interrupted)
 			queue_interrupt(fc, req);
