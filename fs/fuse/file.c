@@ -1909,7 +1909,7 @@ out_unlock:
 
 	return err;
 }
-
+/*
 static int update_buffer_locked(struct fuse_conn *fc,
 				long int pages_flushed,
 				long long unsigned int io_count)
@@ -1952,14 +1952,14 @@ updt_buf_out:
 		kfree(val);
 	return err;
 }
-
+*/
 static int fuse_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_fill_wb_data data;
-	int err,  buf_ret;
+	int err  /*, buf_ret*/;
 	int num_pages;
 
 	/*Will be removed*/
@@ -2026,9 +2026,9 @@ static int fuse_writepages(struct address_space *mapping,
 			fc->incomplete_reqs++;
 		data.pages_written += data.req->num_pages;
 //		printk("I/O count : %llu and Pages flushed : %ld\n", fc->io_count, data.pages_written);
-		buf_ret = update_buffer_locked(fc, data.pages_written, fc->io_count);
-		if (buf_ret)
-			printk("Error in updating the buffer (Not interupting the write flow (%d)\n)", buf_ret);
+//		buf_ret = update_buffer_locked(fc, data.pages_written, fc->io_count);
+//		if (buf_ret)
+//			printk("Error in updating the buffer (Not interupting the write flow (%d)\n)", buf_ret);
 		spin_unlock(&fc->lock);
 		fuse_writepages_send(&data);
 		err = 0;
