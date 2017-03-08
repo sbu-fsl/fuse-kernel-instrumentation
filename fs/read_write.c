@@ -36,6 +36,8 @@ const struct file_operations generic_ro_fops = {
 
 EXPORT_SYMBOL(generic_ro_fops);
 
+#define BILLION 1000000000L
+
 static inline int unsigned_offsets(struct file *file)
 {
 	return file->f_mode & FMODE_UNSIGNED_OFFSET;
@@ -621,6 +623,26 @@ EXPORT_SYMBOL(__kernel_write);
 ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
 {
 	ssize_t ret;
+	int fuse_inode; /* confirming whether the inode belongs to FUSE or not */
+        struct inode *inode;
+        unsigned long long int nodeid = 0;
+	struct timespec start, end;
+	uint64_t time_val;
+
+	do_posix_clock_monotonic_gettime(&start);
+	time_val = BILLION * start.tv_sec + start.tv_nsec;
+
+	fuse_inode = 0;
+        inode = file->f_inode;
+        /* profile point 1 (inode specific and only incase of FUSE) */
+        if (inode && (inode->i_sb->s_magic == 1702057286))
+                fuse_inode = 1; /* inode belongs to fuse */
+
+        if (fuse_inode) {
+                nodeid = get_node_id(inode);
+                trace_vfs_write_start(nodeid, (long long unsigned int) time_val);
+        }
+
 
 	if (!(file->f_mode & FMODE_WRITE))
 		return -EBADF;
@@ -641,6 +663,13 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 		inc_syscw(current);
 		file_end_write(file);
 	}
+
+	
+	/* profile point 8 (inode specific and only incase of FUSE) */
+	do_posix_clock_monotonic_gettime(&end);
+	time_val = BILLION * end.tv_sec + end.tv_nsec;
+        if (fuse_inode)
+                trace_vfs_write_end(nodeid, (long long unsigned int) time_val);
 
 	return ret;
 }

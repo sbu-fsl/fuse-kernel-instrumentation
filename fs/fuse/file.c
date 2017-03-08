@@ -921,15 +921,22 @@ out:
 	return err;
 }
 
+#define BILLION 1000000000L
+
 static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *f_inode = get_fuse_inode(inode);
-	struct timespec start, end;
+	struct timespec start1, start, end;
 	long time;
 	long time_sec;
 	ssize_t ret;
+	uint64_t time_val;
+	
+	do_posix_clock_monotonic_gettime(&start1);
+	time_val = BILLION * start1.tv_sec + start1.tv_nsec;
+	printk("Time value in nanosecs (kernel): %llu\n", (long long unsigned int) time_val);
 
 	getnstimeofday(&start);
 	//printk("Read Start on inode %llu at : %ld\n", get_node_id(inode), (start.tv_sec * 1000000000) + start.tv_nsec);
@@ -964,6 +971,13 @@ static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,
 {
 	struct fuse_write_in *inarg = &req->misc.write.in;
 	struct fuse_write_out *outarg = &req->misc.write.out;
+	struct timespec start;
+	uint64_t time_val;
+
+	do_posix_clock_monotonic_gettime(&start);
+        time_val = BILLION * start.tv_sec + start.tv_nsec;
+
+	trace_fuse_write_request_create(ff->nodeid, (unsigned long long int) time_val);
 
 	inarg->fh = ff->fh;
 	inarg->offset = pos;
@@ -1192,10 +1206,17 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t written = 0;
 	ssize_t written_buffered = 0;
 	struct inode *inode = mapping->host;
+	//struct fuse_inode *f_inode = get_fuse_inode(inode);
 	struct fuse_conn *fc;
 	ssize_t err;
 	loff_t endbyte = 0;
 	unsigned long long io_counter;
+	struct timespec start, end;
+	uint64_t time_val;
+
+	do_posix_clock_monotonic_gettime(&start);
+        time_val = BILLION * start.tv_sec + start.tv_nsec;
+	trace_fuse_file_write_iter_begin(get_node_id(inode), (unsigned long long int) time_val);
 
 	fc = get_fuse_conn(inode);
 	if (fc->writeback_cache) {
@@ -1205,14 +1226,16 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		io_counter = fc->io_count;
 		spin_unlock(&fc->lock);
 
-		trace_fuse_file_write_iter_begin(io_counter);
 		/* Update size (EOF optimization) and mode (SUID clearing) */
 		err = fuse_update_attributes(mapping->host, NULL, file, NULL);
 		if (err)
 			return err;
 		/*Done counting*/
 		written = generic_file_write_iter(iocb, from);
-		trace_fuse_file_write_iter_end(io_counter);
+
+		do_posix_clock_monotonic_gettime(&end);
+		time_val = BILLION * end.tv_sec + end.tv_nsec;
+		trace_fuse_file_write_iter_end(get_node_id(inode), (unsigned long long int) time_val);
 		return written;
 	}
 
@@ -1267,6 +1290,10 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 out:
 	current->backing_dev_info = NULL;
 	mutex_unlock(&inode->i_mutex);
+
+	do_posix_clock_monotonic_gettime(&end);
+	time_val = BILLION * end.tv_sec + end.tv_nsec;
+	trace_fuse_file_write_iter_end(get_node_id(inode), (unsigned long long int) time_val);
 
 	return written ? written : err;
 }

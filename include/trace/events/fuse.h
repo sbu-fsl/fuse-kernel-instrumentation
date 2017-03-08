@@ -134,6 +134,25 @@ TRACE_EVENT(fuse_read_request_create,
 	TP_printk("Fuse Read Request created on inode : %llu", __entry->inode)
 );
 
+TRACE_EVENT(fuse_write_request_create,
+
+        TP_PROTO(unsigned long long int inode, unsigned long long int time_val),
+
+        TP_ARGS(inode, time_val),
+
+        TP_STRUCT__entry(
+                __field(unsigned long long int, inode)
+                __field(unsigned long long int, time_val)
+        ),
+
+        TP_fast_assign(
+                __entry->inode		= inode;
+                __entry->time_val	= time_val;
+        ),
+
+        TP_printk("Fuse Write Request created on inode : %llu Time : %llu", __entry->inode, __entry->time_val)
+);
+
 TRACE_EVENT(bg_queue_difference,
 
 	TP_PROTO(unsigned long long int inode, long int time_diff),
@@ -233,19 +252,21 @@ TRACE_EVENT(fuse_write_begin_page_alloc_end,
 
 TRACE_EVENT(fuse_file_write_iter_begin,
 
-	TP_PROTO(unsigned long long io_count),
+	TP_PROTO(unsigned long long int inode, unsigned long long int time_val),
 
-	TP_ARGS(io_count),
+	TP_ARGS(inode, time_val),
 
 	TP_STRUCT__entry(
-		__field(unsigned long long, io_count)
+		__field(unsigned long long, inode)
+		__field(unsigned long long, time_val)
 	),
 
 	TP_fast_assign(
-		__entry->io_count = io_count;
+		__entry->inode		= inode;
+		__entry->time_val	= time_val;
 	),
 
-	TP_printk("iteration count : %llu ", __entry->io_count)
+	TP_printk("Fuse Write Iter begin on inode : %llu Time : %llu", __entry->inode, __entry->time_val)
 );
 
 
@@ -353,19 +374,21 @@ TRACE_EVENT(fuse_file_read_pages_end,
 
 TRACE_EVENT(fuse_file_write_iter_end, 
 
-        TP_PROTO(unsigned long long io_count),
+        TP_PROTO(unsigned long long int inode, unsigned long long int time_val),
 
-        TP_ARGS(io_count),
+        TP_ARGS(inode, time_val),
 
         TP_STRUCT__entry(
-                __field(unsigned long long, io_count)
+                __field(unsigned long long int, inode)
+                __field(unsigned long long int, time_val)
         ),
 
         TP_fast_assign(
-                __entry->io_count = io_count;
+                __entry->inode		= inode;
+                __entry->time_val	= time_val;
         ),
 
-        TP_printk("iteration count : %llu ", __entry->io_count)
+        TP_printk("Fuse Write Iter end on Inode : %llu Time : %llu", __entry->inode, __entry->time_val)
 );
 
 TRACE_EVENT(fuse_fill_write_page_alloc_start,
