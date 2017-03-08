@@ -532,8 +532,6 @@ void fuse_read_fill(struct fuse_req *req, struct file *file, loff_t pos,
 	req->out.argvar = 1;
 	req->out.numargs = 1;
 	req->out.args[0].size = count;
-	/* profile point of read request creation */
-	trace_fuse_read_request_create(req->in.h.nodeid);
 }
 
 static void fuse_release_user_pages(struct fuse_req *req, int write)
@@ -886,6 +884,7 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *f_inode = get_fuse_inode(inode);
 	struct fuse_fill_data data;
 	int err;
 	int nr_alloc = min_t(unsigned, nr_pages, FUSE_MAX_PAGES_PER_REQ);
@@ -915,6 +914,7 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 		} else
 			fuse_put_request(fc, data.req);
 	}
+	f_inode->req_sent_user = 1; /* A req has been sent to user space */
 	/* trace of end of read pages */
 	trace_fuse_file_read_pages_end(0);
 out:
@@ -925,15 +925,13 @@ static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	//struct timespec start, end;
-	//long time;
-	//long time_sec;
+	struct fuse_inode *f_inode = get_fuse_inode(inode);
+	struct timespec start, end;
+	long time;
+	long time_sec;
 	ssize_t ret;
-	unsigned long long int nodeid;
 
-	nodeid = get_node_id(inode);
-	trace_fuse_read_iter_start(nodeid);
-	//getnstimeofday(&start);
+	getnstimeofday(&start);
 	//printk("Read Start on inode %llu at : %ld\n", get_node_id(inode), (start.tv_sec * 1000000000) + start.tv_nsec);
 	/*
 	 * In auto invalidate mode, always update attributes on read.
@@ -948,14 +946,16 @@ static ssize_t fuse_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			return err;
 	}
 	ret = generic_file_read_iter(iocb, to);
-	//getnstimeofday(&end);
+	getnstimeofday(&end);
 	//printk("Read End on inode %llu at : %ld\n", get_node_id(inode), (end.tv_sec * 1000000000) + end.tv_nsec);
-	//time_sec = end.tv_sec - start.tv_sec;
-	//time = end.tv_nsec - start.tv_nsec;
-	//time_sec *= 1000000000;
-	//time += time_sec;
+	time_sec = end.tv_sec - start.tv_sec;
+	time = end.tv_nsec - start.tv_nsec;
+	time_sec *= 1000000000;
+	time += time_sec;
 	//printk("Read fuse inode : %llu diff : %ld", get_node_id(inode), time);
-	trace_fuse_read_iter_end(nodeid);
+	if (f_inode->req_sent_user)
+		trace_fuse_read_difference(get_node_id(inode), time);
+	f_inode->req_sent_user = 0;
 	return ret;
 }
 

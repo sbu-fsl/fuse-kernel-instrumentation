@@ -110,6 +110,9 @@ struct fuse_inode {
 	/** List of writepage requestst (pending or sent) */
 	struct list_head writepages;
 
+	/** This bit tells whether a request to this inode is sent to user daemon **/
+	unsigned req_sent_user:1;
+
 	/** Miscellaneous bits describing inode state */
 	unsigned long state;
 };
