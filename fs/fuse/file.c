@@ -2047,7 +2047,7 @@ static int fuse_writepages(struct address_space *mapping,
 				  GFP_NOFS);
 	if (!data.orig_pages)
 		goto out;
-	
+
 	/*trace start of writepages*/
 	trace_fuse_file_write_pages_begin(0);
 	err = write_cache_pages(mapping, wbc, fuse_writepages_fill, &data);

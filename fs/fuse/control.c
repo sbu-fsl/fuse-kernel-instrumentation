@@ -478,7 +478,7 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 	return count;
 }
 
-
+/*
 static ssize_t fuse_conn_write_cache_pages_return_read(struct file *file,
                                                 char __user *buf, size_t len,
                                                 loff_t *ppos)
@@ -495,34 +495,33 @@ static ssize_t fuse_conn_write_cache_pages_return_read(struct file *file,
 	if (!fc)
 		return 0;
 
-         tmp = (char *)kmalloc(PAGE_SIZE * sizeof(char), GFP_KERNEL);
-         if (!tmp) {
-                 fuse_conn_pute(fc);
-                 retunr -ENOMEM;
-         }
-         temp[0] = '\0';
-         memset(val, 0, 24);
+        tmp = (char *)kmalloc(PAGE_SIZE * sizeof(char), GFP_KERNEL);
+        if (!tmp) {
+                fuse_conn_put(fc);
+                return -ENOMEM;
+        }
+        tmp[0] = '\0';
+        memset(val, 0, 24);
 
-         spin_lock(&fc->lock);
-         for (i = 0; i < 5; i++) {
-                 size = sprintf(val, "%llu\n", fc->write_pages_returned[i]);
-                 strcat(tmp, val);
-         }
-         spin_unlock(&fc->lock);
-         fuse_conn_put(fc);
+        spin_lock(&fc->lock);
+        for (i = 0; i < 5; i++) {
+                size = sprintf(val, "%llu\n", fc->write_pages_returned[i]);
+                strcat(tmp, val);
+        }
+        spin_unlock(&fc->lock);
+        fuse_conn_put(fc);
 
-         count = strlen(tmp);
-         ret = copy_to_user(buf, tmp, count);
-         if (tmp)
-                 kfree(tmp);
-         if (ret != 0)
-                 return -EFAULT;
-         count -= ret;
-         *ppos = *ppos + count;
-         return count;
+        count = strlen(tmp);
+        ret = copy_to_user(buf, tmp, count);
+        if (tmp)
+                kfree(tmp);
+        if (ret != 0)
+                return -EFAULT;
+        count -= ret;
+        *ppos = *ppos + count;
+        return count;
 }
 
-/*
 static unsigned long long int list_count(struct list_head *head) {
 	struct list_head *pln;
 	unsigned long long int numItems = 0;
@@ -540,7 +539,7 @@ static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 	struct fuse_conn *fc;
 	int count, ret;
 	size_t size;
-         char val[24], *tmp = NULL;
+        char val[24], *tmp = NULL;
 
 	if (*ppos != 0)
 		return 0;
@@ -609,7 +608,7 @@ static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 static ssize_t fuse_conn_wbc_flush_pages_ios_read(struct file *file,
                                                    char __user *buf, size_t len,
                                                    loff_t *ppos)
-+{
+{
         struct fuse_conn *fc;
 	int ret = 0, to_write = 0, count;
 
