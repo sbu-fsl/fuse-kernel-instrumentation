@@ -653,13 +653,27 @@ static long writeback_chunk_size(struct backing_dev_info *bdi,
 	if (work->sync_mode == WB_SYNC_ALL || work->tagged_writepages)
 		pages = LONG_MAX;
 	else {
-		pages = min(bdi->avg_write_bandwidth / 2,
-			    global_dirty_limit / DIRTY_SCOPE);
-		pages = min(pages, work->nr_pages);
-		pages = round_down(pages + MIN_WRITEBACK_PAGES,
-				   MIN_WRITEBACK_PAGES);
-	}
+		long bandwidth, global_dirty_scope;
+		long pages1, pages2, pages3;  /*Dirty Hack, please remove*/
 
+		bandwidth = bdi->avg_write_bandwidth / 2;
+		global_dirty_scope = global_dirty_limit / DIRTY_SCOPE;
+
+		pages1 = min(bandwidth, global_dirty_scope);
+
+		pages2 = min(pages1, work->nr_pages);
+
+		pages3 = round_down(pages2 + MIN_WRITEBACK_PAGES,
+				   MIN_WRITEBACK_PAGES);
+		pages = pages3;
+
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_writeback_chunk_size_compare(bandwidth, global_dirty_scope, pages1, 
+						work->nr_pages, pages2, pages2 + MIN_WRITEBACK_PAGES, 
+						MIN_WRITEBACK_PAGES, pages3);
+	}
+	if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+		trace_writeback_chunk_size(pages);
 	return pages;
 }
 
@@ -842,17 +856,29 @@ static long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
 static bool over_bground_thresh(struct backing_dev_info *bdi)
 {
 	unsigned long background_thresh, dirty_thresh;
+	unsigned long nr_dirty;
+	unsigned long bdi_dirty;
+	unsigned long bdi_bg_limit;
 
+	if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+		trace_writeback_bdi_over_bground_thresh_start(0);
 	global_dirty_limits(&background_thresh, &dirty_thresh);
-
-	if (global_page_state(NR_FILE_DIRTY) +
-	    global_page_state(NR_UNSTABLE_NFS) > background_thresh)
+	
+	nr_dirty = global_page_state(NR_FILE_DIRTY) + global_page_state(NR_UNSTABLE_NFS);
+	if ( nr_dirty > background_thresh) {
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+                	trace_writeback_bdi_over_bground_thresh_end(1, true, nr_dirty, background_thresh, 0, 0);
 		return true;
-
-	if (bdi_stat(bdi, BDI_RECLAIMABLE) >
-				bdi_dirty_limit(bdi, background_thresh))
+	}
+	bdi_dirty = bdi_stat(bdi, BDI_RECLAIMABLE);
+	bdi_bg_limit = bdi_dirty_limit(bdi, background_thresh);
+	if (bdi_dirty > bdi_bg_limit) {
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+                        trace_writeback_bdi_over_bground_thresh_end(2, true, nr_dirty, background_thresh, bdi_dirty, bdi_bg_limit);
 		return true;
-
+	}
+	if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+                        trace_writeback_bdi_over_bground_thresh_end(3, false, nr_dirty, background_thresh, bdi_dirty, bdi_bg_limit);
 	return false;
 }
 
@@ -1009,7 +1035,10 @@ static unsigned long get_nr_dirty_pages(void)
 
 static long wb_check_background_flush(struct bdi_writeback *wb)
 {
+	if (wb->bdi && wb->bdi->name && (strcmp(wb->bdi->name, "fuse") == 0))
+		trace_wb_check_background_flush_start(0);
 	if (over_bground_thresh(wb->bdi)) {
+		long written;
 
 		struct wb_writeback_work work = {
 			.nr_pages	= LONG_MAX,
@@ -1019,9 +1048,13 @@ static long wb_check_background_flush(struct bdi_writeback *wb)
 			.reason		= WB_REASON_BACKGROUND,
 		};
 
-		return wb_writeback(wb, &work);
+		written = wb_writeback(wb, &work);
+		if (wb->bdi && wb->bdi->name && (strcmp(wb->bdi->name, "fuse") == 0))
+			trace_wb_check_background_flush_end(written);
+		return written;
 	}
-
+	if (wb->bdi && wb->bdi->name && (strcmp(wb->bdi->name, "fuse") == 0))
+                        trace_wb_check_background_flush_end(0);
 	return 0;
 }
 
@@ -1124,6 +1157,8 @@ void bdi_writeback_workfn(struct work_struct *work)
 		 * rescuer as work_list needs to be drained.
 		 */
 		do {
+			if (bdi->name && (strcmp(bdi->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
+				trace_writeback_pages_before_written(0);
 			pages_written = wb_do_writeback(wb);
 			if (bdi->name && (strcmp(bdi->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
 				trace_writeback_pages_written(pages_written);

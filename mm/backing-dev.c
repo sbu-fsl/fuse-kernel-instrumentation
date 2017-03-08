@@ -184,7 +184,6 @@ static ssize_t min_ratio_store(struct device *dev,
 	ret = bdi_set_min_ratio(bdi, ratio);
 	if (!ret)
 		ret = count;
-
 	return ret;
 }
 BDI_SHOW(min_ratio, bdi->min_ratio)
@@ -203,7 +202,6 @@ static ssize_t max_ratio_store(struct device *dev,
 	ret = bdi_set_max_ratio(bdi, ratio);
 	if (!ret)
 		ret = count;
-
 	return ret;
 }
 BDI_SHOW(max_ratio, bdi->max_ratio)

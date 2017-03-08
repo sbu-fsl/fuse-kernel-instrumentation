@@ -564,7 +564,7 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
 	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
 		bdi_dirty = dirty * bdi->max_ratio / 100;
 	if (bdi->name && (strcmp(bdi->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
-		trace_bdi_dirty_fuselimts(dirty, kernel_gave, min_dirty, max_dirty, bdi_dirty);
+		trace_bdi_dirty_fuselimts(dirty, kernel_gave, numerator, denominator, min_dirty, max_dirty, bdi_dirty);
 	return bdi_dirty;
 }
 
@@ -1387,7 +1387,8 @@ static void balance_dirty_pages(struct address_space *mapping,
 		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
 					global_page_state(NR_UNSTABLE_NFS);
 		nr_dirty = nr_reclaimable + global_page_state(NR_WRITEBACK);
-
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_balance_dirty_pages_details(nr_dirty, nr_reclaimable);
 		global_dirty_limits(&background_thresh, &dirty_thresh);
 
 		if (unlikely(strictlimit)) {
@@ -1906,8 +1907,10 @@ retry:
 		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
 			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
 		if (nr_pages == 0) {
-			if (fuse_inode->i_sb->s_magic == 1702057286)
+			if (fuse_inode->i_sb->s_magic == 1702057286) {
+				trace_write_cache_pages_return(1);
 				((struct fuse_fill_wb_data *)data)->returned = 1;
+			}
 			break;
 		}
 		for (i = 0; i < nr_pages; i++) {
@@ -1926,8 +1929,10 @@ retry:
 				 * end == -1 in that case.
 				 */
 				done = 1;
-				if (fuse_inode->i_sb->s_magic == 1702057286)
+				if (fuse_inode->i_sb->s_magic == 1702057286) {
+					trace_write_cache_pages_return(1);
 					((struct fuse_fill_wb_data *)data)->returned = 2;
+				}
 				break;
 			}
 
@@ -1983,8 +1988,10 @@ continue_unlock:
 					 */
 					done_index = page->index + 1;
 					done = 1;
-					if (fuse_inode->i_sb->s_magic == 1702057286)
+					if (fuse_inode->i_sb->s_magic == 1702057286) {
+						trace_write_cache_pages_return(3);
 						((struct fuse_fill_wb_data *)data)->returned = 3;
+					}
 					break;
 				}
 			}
@@ -1998,8 +2005,10 @@ continue_unlock:
 			if (--wbc->nr_to_write <= 0 &&
 			    wbc->sync_mode == WB_SYNC_NONE) {
 				done = 1;
-				if (fuse_inode->i_sb->s_magic == 1702057286)
+				if (fuse_inode->i_sb->s_magic == 1702057286) {
+					trace_write_cache_pages_return(4);
 					((struct fuse_fill_wb_data *)data)->returned = 4;
+				}
 				break;
 			}
 		}

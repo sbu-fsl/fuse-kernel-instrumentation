@@ -371,8 +371,10 @@ static void fuse_send_destroy(struct fuse_conn *fc)
 
 static void fuse_bdi_destroy(struct fuse_conn *fc)
 {
-	if (fc->bdi_initialized)
+	if (fc->bdi_initialized) {
+//		printk("BDI Min Ratio : %u, BDI Max Ratio : %u\n", fc->bdi.min_ratio, fc->bdi.max_ratio);
 		bdi_destroy(&fc->bdi);
+	}
 }
 
 static void fuse_put_super(struct super_block *sb)

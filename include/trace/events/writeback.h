@@ -217,6 +217,81 @@ DEFINE_WRITEBACK_WORK_EVENT(writeback_start);
 DEFINE_WRITEBACK_WORK_EVENT(writeback_written);
 DEFINE_WRITEBACK_WORK_EVENT(writeback_wait);
 
+TRACE_EVENT(writeback_bdi_over_bground_thresh_end,
+        TP_PROTO(int option, bool value, 
+		 long nr_dirty, long global_bg_thres,
+		 long bdi_dirty, long bdi_bg_thresh),
+        TP_ARGS(option, value, nr_dirty, global_bg_thres, bdi_dirty, bdi_bg_thresh),
+        TP_STRUCT__entry(
+                __field(int,           	option)
+		__field(bool,	       	value)
+		__field(long, 		nr_dirty)
+		__field(long,		global_bg_thres)
+		__field(long, 		bdi_dirty)
+		__field(long, 		bdi_bg_thresh) 
+        ),
+        TP_fast_assign(
+                __entry->option         = option;
+		__entry->value		= value;
+		__entry->nr_dirty	= nr_dirty;
+		__entry->global_bg_thres= global_bg_thres;
+		__entry->bdi_dirty	= bdi_dirty;
+		__entry->bdi_bg_thresh	= bdi_bg_thresh;
+		
+        ),
+        TP_printk("option : %d value : %d nr_dirty : %lu G_bg_thresh : %lu BDI_REC : %lu BDI_bg_thresh : %lu", 
+		__entry->option, __entry->value, __entry->nr_dirty, __entry->global_bg_thres, __entry->bdi_dirty, __entry->bdi_bg_thresh)
+);
+
+TRACE_EVENT(writeback_bdi_over_bground_thresh_start,
+        TP_PROTO(long pages_written),
+        TP_ARGS(pages_written),
+        TP_STRUCT__entry(
+                __field(long,           pages)
+        ),
+        TP_fast_assign(
+                __entry->pages          = pages_written;
+        ),
+        TP_printk("%ld", __entry->pages)
+);
+
+TRACE_EVENT(wb_check_background_flush_end,
+        TP_PROTO(long pages_written),
+        TP_ARGS(pages_written),
+        TP_STRUCT__entry(
+                __field(long,           pages)
+        ),
+        TP_fast_assign(
+                __entry->pages          = pages_written;
+        ),
+        TP_printk("%ld", __entry->pages)
+);
+
+
+TRACE_EVENT(wb_check_background_flush_start,
+        TP_PROTO(long pages_written),
+        TP_ARGS(pages_written),
+        TP_STRUCT__entry(
+                __field(long,           pages)
+        ),
+        TP_fast_assign(
+                __entry->pages          = pages_written;
+        ),
+        TP_printk("%ld", __entry->pages)
+);
+
+TRACE_EVENT(writeback_pages_before_written,
+        TP_PROTO(long pages_written),
+        TP_ARGS(pages_written),
+        TP_STRUCT__entry(
+                __field(long,           pages)
+        ),
+        TP_fast_assign(
+                __entry->pages          = pages_written;
+        ),
+        TP_printk("%ld", __entry->pages)
+);
+
 TRACE_EVENT(writeback_pages_written,
 	TP_PROTO(long pages_written),
 	TP_ARGS(pages_written),
@@ -467,15 +542,19 @@ TRACE_EVENT(bdi_dirty_fuselimts,
 
 	TP_PROTO(unsigned long dirty_passed,
 		 unsigned long long kernel_gave,
+		 long numerator,
+		 long denominator,
 		 unsigned long min_dirty,
 		 unsigned long max_dirty,
 		 unsigned long long final_dirty),
 
-	TP_ARGS(dirty_passed, kernel_gave, min_dirty, max_dirty, final_dirty),
+	TP_ARGS(dirty_passed, kernel_gave, numerator, denominator, min_dirty, max_dirty, final_dirty),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, dirty_passed)
 		__field(unsigned long long, kernel_gave)
+		__field(long, numerator)
+		__field(long, denominator)
 		__field(unsigned long, min_dirty)
 		__field(unsigned long, max_dirty)
 		__field(unsigned long long, final_dirty)
@@ -484,20 +563,132 @@ TRACE_EVENT(bdi_dirty_fuselimts,
 	TP_fast_assign(
 		__entry->dirty_passed	= dirty_passed;
 		__entry->kernel_gave	= kernel_gave;
+		__entry->numerator	= numerator;
+		__entry->denominator	= denominator;
 		__entry->min_dirty	= min_dirty;
 		__entry->max_dirty	= max_dirty;
 		__entry->final_dirty	= final_dirty;
 	),
 
 	TP_printk("dirty passed : %lu "
-		  "kernel value : %llu min_dirty : %lu "
+		  "kernel value : %llu numerator : %ld denominator : %ld min_dirty : %lu "
 		  "max_dirty : %lu final_dirty : %llu",
 		  __entry->dirty_passed,	/* Dirty threshold passed */
 		  __entry->kernel_gave,		/* Kernel calculated value */
+		  __entry->numerator,
+		  __entry->denominator,
 		  __entry->min_dirty,		/* Min dirty threshold */
 		  __entry->max_dirty,		/* Max dirty threshold */
 		  __entry->final_dirty		/* FInal dirty threshold value */
 	)
+);
+
+TRACE_EVENT(writeback_chunk_size,
+
+	TP_PROTO(long pages),
+
+	TP_ARGS(pages),
+
+	TP_STRUCT__entry(
+		__field(long, pages)
+	),
+
+	TP_fast_assign(
+		__entry->pages	= pages;
+	),
+
+	TP_printk("chunk size pages : %ld",
+		 __entry->pages
+	)
+);
+
+TRACE_EVENT(writeback_chunk_size_compare,
+
+	TP_PROTO(long bandwidth, 
+		long global_dirty_scope, 
+		long pages1,
+		long work_nr_pages,
+		long pages2,
+		long pages2_min_wb_pages,
+		long min_wb_pages,
+		long pages3),
+
+	TP_ARGS(bandwidth, global_dirty_scope, pages1, 
+		work_nr_pages, pages2, pages2_min_wb_pages, 
+		min_wb_pages, pages3),
+
+	TP_STRUCT__entry(
+                __field(long, bandwidth)
+		__field(long, global_dirty_scope)
+		__field(long, pages1)
+		__field(long, work_nr_pages)
+		__field(long, pages2)
+		__field(long, pages2_min_wb_pages)
+		__field(long, min_wb_pages)
+		__field(long, pages3)
+        ),
+
+	TP_fast_assign(
+                __entry->bandwidth		= bandwidth;
+		__entry->global_dirty_scope	= global_dirty_scope;
+		__entry->pages1			= pages1;
+		__entry->work_nr_pages		= work_nr_pages;
+		__entry->pages2			= pages2;
+		__entry->pages2_min_wb_pages	= pages2_min_wb_pages;
+		__entry->min_wb_pages		= min_wb_pages;
+		__entry->pages3			= pages3;
+        ),
+
+	TP_printk("Min(bdi_bandwidth/2 : %ld, global_dirty_lim/dirty_scope : %ld) : %ld "
+		  "Min(pages1 : %ld, work_nr_pages : %ld) : %ld "
+		  "Round_down(pages2+min_wb_pages : %ld, min_wb_pages : %ld) : %ld ",
+		  __entry->bandwidth,
+		  __entry->global_dirty_scope,
+		  __entry->pages1, __entry->pages1,
+		  __entry->work_nr_pages,
+		  __entry->pages2,
+		  __entry->pages2_min_wb_pages,
+		  __entry->min_wb_pages,
+		  __entry->pages3
+        )
+);
+
+TRACE_EVENT(balance_dirty_pages_details,
+
+	TP_PROTO(unsigned long nr_dirty, unsigned long nr_reclaimed),
+
+	TP_ARGS(nr_dirty, nr_reclaimed),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, nr_dirty)
+		__field(unsigned long, nr_reclaimed)
+	),
+
+	TP_fast_assign(
+		__entry->nr_dirty	= nr_dirty;
+		__entry->nr_reclaimed	= nr_reclaimed;
+	),
+
+	TP_printk("nr_dirty : %lu nr_reclaimed : %lu ",
+		  __entry->nr_dirty, __entry->nr_reclaimed
+	)
+);
+
+TRACE_EVENT(write_cache_pages_return,
+
+	TP_PROTO(int ret_val),
+
+	TP_ARGS(ret_val),
+
+	TP_STRUCT__entry(
+		__field(int, ret_val)
+	),
+
+	TP_fast_assign(
+		__entry->ret_val = ret_val;
+	),
+
+	TP_printk("Ret val : %d ", __entry->ret_val)
 );
 
 TRACE_EVENT(balance_dirty_pages_ratelimited,
