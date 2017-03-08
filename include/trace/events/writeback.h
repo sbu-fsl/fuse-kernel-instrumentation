@@ -793,6 +793,85 @@ TRACE_EVENT(balance_dirty_pages_pause_end,
         TP_printk("pause : %ld", __entry->pause)
 );
 
+TRACE_EVENT(balance_dirty_pages_debug,
+
+        TP_PROTO(int option,
+		unsigned long nr_reclaimable,
+		unsigned long nr_dirty,
+		unsigned long dirty_thresh,
+                unsigned long bg_thresh,
+		unsigned long bdi_dirty,
+                unsigned long bdi_bg_thresh,
+		unsigned long bdi_thresh,
+                unsigned long bdi_dirty_ratelimit,
+		unsigned long pos_ratio,
+                unsigned long task_ratelimit,
+		long min_pause,
+                long max_pause,
+                long pause,
+                int nr_dirtied_pause),
+
+        TP_ARGS(option, nr_reclaimable, nr_dirty, dirty_thresh, bg_thresh, bdi_dirty, bdi_bg_thresh, bdi_thresh, bdi_dirty_ratelimit, pos_ratio, task_ratelimit, min_pause, max_pause, pause, nr_dirtied_pause),
+
+        TP_STRUCT__entry(
+                __field(int, option)
+		__field(unsigned long, nr_reclaimable)
+		__field(unsigned long, nr_dirty)
+		__field(unsigned long, dirty_thresh)
+		__field(unsigned long, bg_thresh)
+		__field(unsigned long, bdi_dirty)
+		__field(unsigned long, bdi_bg_thresh)
+		__field(unsigned long, bdi_thresh)
+		__field(unsigned long, bdi_dirty_ratelimit)
+		__field(unsigned long, pos_ratio)
+		__field(unsigned long, task_ratelimit)
+		__field(long, min_pause)
+		__field(long, max_pause)
+		__field(long, pause)
+		__field(int, nr_dirtied_pause)
+        ),
+
+        TP_fast_assign(
+                __entry->option 		= option;
+		__entry->nr_reclaimable 	= nr_reclaimable;
+		__entry->nr_dirty		= nr_dirty;
+		__entry->dirty_thresh		= dirty_thresh;
+		__entry->bg_thresh		= bg_thresh;
+		__entry->bdi_dirty		= bdi_dirty;
+		__entry->bdi_bg_thresh		= bdi_bg_thresh;
+		__entry->bdi_thresh		= bdi_thresh;
+		__entry->bdi_dirty_ratelimit	= bdi_dirty_ratelimit;
+		__entry->pos_ratio		= pos_ratio;
+		__entry->task_ratelimit		= task_ratelimit;
+		__entry->min_pause		= min_pause;
+		__entry->max_pause		= max_pause;
+		__entry->pause			= pause;
+		__entry->nr_dirtied_pause	= nr_dirtied_pause;
+        ),
+
+        TP_printk("option : %d nr_reclaimable : %lu nr_dirty : %lu "
+		  "dirty_thresh : %lu bg_thresh : %lu bdi_dirty : %lu "
+		  "bdi_bg_thresh : %lu bdi_thresh : %lu bdi_dirty_ratelimit : %lu "
+		  "pos_ratio : %lu task_ratelimit : %lu min_pause : %ld "
+		  "max_pause : %ld pause : %ld nr_dirtied_pause : %d ", 
+		  __entry->option, 
+		  __entry->nr_reclaimable, 
+		  __entry->nr_dirty, 
+		  __entry->dirty_thresh,
+		  __entry->bg_thresh,
+		  __entry->bdi_dirty,
+		  __entry->bdi_bg_thresh,
+       		  __entry->bdi_thresh,
+		  __entry->bdi_dirty_ratelimit,
+		  __entry->pos_ratio,
+		  __entry->task_ratelimit,
+		  __entry->min_pause,
+		  __entry->max_pause,
+		  __entry->pause,
+		  __entry->nr_dirtied_pause
+		)
+);
+
 TRACE_EVENT(balance_dirty_pages,
 
 	TP_PROTO(struct backing_dev_info *bdi,

@@ -1421,6 +1421,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 			current->nr_dirtied = 0;
 			current->nr_dirtied_pause =
 				dirty_poll_interval(dirty, thresh);
+			/* option 1 : BDI Dirty Data is lower than the free run, No need to pause */
+			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+				trace_balance_dirty_pages_debug(1, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
+							bdi_dirty, bg_thresh, bdi_thresh, bdi->dirty_ratelimit, 0, 0, 
+							0, 0, 0, current->nr_dirtied_pause);
 			break;
 		}
 
@@ -1454,6 +1459,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 		if (unlikely(task_ratelimit == 0)) {
 			period = max_pause;
 			pause = max_pause;
+			/* option 2 : Task rate limit is 0, we pasue for MAX_PAUSE */
+			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+				trace_balance_dirty_pages_debug(2, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
+							bdi_dirty, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit, 
+							min_pause, max_pause, pause, nr_dirtied_pause);
 			goto pause;
 		}
 		period = HZ * pages_dirtied / task_ratelimit;
@@ -1489,6 +1499,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 				current->nr_dirtied = 0;
 			} else if (current->nr_dirtied_pause <= pages_dirtied)
 				current->nr_dirtied_pause += pages_dirtied;
+			/* option 3 : pause calculated is less than the min pause, so we donot pause*/
+			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+				trace_balance_dirty_pages_debug(3, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
+                                                         bdi_dirty, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit,
+                                                         min_pause, max_pause, pause, current->nr_dirtied_pause);
 			break;
 		}
 		if (unlikely(pause > max_pause)) {
@@ -1496,6 +1511,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 			now += min(pause - max_pause, max_pause);
 			pause = max_pause;
 		}
+		/* Option 4 we are pausing (throttling) the task */
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_balance_dirty_pages_debug(4, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
+                                                          bdi_dirty, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit,
+                                                          min_pause, max_pause, pause, nr_dirtied_pause);
 
 pause:
 		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
@@ -1566,8 +1586,14 @@ pause:
 	if (laptop_mode)
 		return;
 
-	if (nr_reclaimable > background_thresh)
+	if (nr_reclaimable > background_thresh) {
+		/* option 5 even though bdi dirty data is below but global dirty will be higher*/
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_balance_dirty_pages_debug(5, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
+                                                      	0, 0, 0, bdi->dirty_ratelimit, 0, 0, /* The bdi values can be seen from prev. debug stmt*/
+                                                        0, 0, 0, current->nr_dirtied_pause);
 		bdi_start_background_writeback(bdi);
+	}
 }
 
 static DEFINE_PER_CPU(int, bdp_ratelimits);
