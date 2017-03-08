@@ -334,11 +334,13 @@ TRACE_EVENT(writeback_queue_io,
 TRACE_EVENT(global_dirty_state,
 
 	TP_PROTO(unsigned long background_thresh,
-		 unsigned long dirty_thresh
+		 unsigned long dirty_thresh,
+		 unsigned long avail_memory
 	),
 
 	TP_ARGS(background_thresh,
-		dirty_thresh
+		dirty_thresh,
+		avail_memory
 	),
 
 	TP_STRUCT__entry(
@@ -347,6 +349,7 @@ TRACE_EVENT(global_dirty_state,
 		__field(unsigned long,	nr_unstable)
 		__field(unsigned long,	background_thresh)
 		__field(unsigned long,	dirty_thresh)
+		__field(unsigned long, 	avail_memory)
 		__field(unsigned long,	dirty_limit)
 		__field(unsigned long,	nr_dirtied)
 		__field(unsigned long,	nr_written)
@@ -360,17 +363,19 @@ TRACE_EVENT(global_dirty_state,
 		__entry->nr_written	= global_page_state(NR_WRITTEN);
 		__entry->background_thresh = background_thresh;
 		__entry->dirty_thresh	= dirty_thresh;
+		__entry->avail_memory	= avail_memory;
 		__entry->dirty_limit = global_dirty_limit;
 	),
 
 	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
-		  "bg_thresh=%lu thresh=%lu limit=%lu "
-		  "dirtied=%lu written=%lu",
+		  "bg_thresh=%lu thresh=%lu avail_mem=%lu "
+		  "limit=%lu " "dirtied=%lu written=%lu",
 		  __entry->nr_dirty,
 		  __entry->nr_writeback,
 		  __entry->nr_unstable,
 		  __entry->background_thresh,
 		  __entry->dirty_thresh,
+		  __entry->avail_memory,
 		  __entry->dirty_limit,
 		  __entry->nr_dirtied,
 		  __entry->nr_written
@@ -422,6 +427,42 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 	)
 );
 
+TRACE_EVENT(bdi_dirty_limits,
+
+	TP_PROTO(unsigned long dirty_thresh,
+		 unsigned long background_thresh,
+		 unsigned long bdi_dirty,
+		 unsigned long bdi_thresh,
+		 unsigned long bdi_bg_thresh),
+
+	TP_ARGS(dirty_thresh, background_thresh, bdi_dirty, bdi_thresh, bdi_bg_thresh),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, dirty_thresh)
+		__field(unsigned long, background_thresh)
+		__field(unsigned long, bdi_dirty)
+		__field(unsigned long, bdi_thresh)
+		__field(unsigned long, bdi_bg_thresh)	
+	),
+
+	TP_fast_assign(
+		__entry->dirty_thresh		= dirty_thresh;
+		__entry->background_thresh	= background_thresh;
+		__entry->bdi_dirty		= bdi_dirty;
+		__entry->bdi_thresh		= bdi_thresh;
+		__entry->bdi_bg_thresh		= bdi_bg_thresh;
+	),
+
+	TP_printk("dirty_thresh=%lu bg_thresh=%lu "
+		  "bdi_dirty=%lu bdi_thresh=%lu bdi_bg_thresh=%lu",
+		  __entry->dirty_thresh,	/* Global Dirty threshold (20% of available memory) */
+		  __entry->background_thresh,	/* Global background threshold (10% of available memory) */	
+		  __entry->bdi_dirty,		/* BDI Dirty pages = BDI_RECLAIMABLE */
+		  __entry->bdi_thresh,		/* BDI Threshold (similar to Global Dirty Threshold) calculated using min and max ratio's of bdi*/
+		  __entry->bdi_bg_thresh	/* BDI Background Threshold (similar to Global Background Threshold) calculated : bdi_thresh*(dirty_thresh/background_thresh) */
+	)
+);
+
 TRACE_EVENT(bdi_dirty_fuselimts,
 
 	TP_PROTO(unsigned long dirty_passed,
@@ -457,6 +498,62 @@ TRACE_EVENT(bdi_dirty_fuselimts,
 		  __entry->max_dirty,		/* Max dirty threshold */
 		  __entry->final_dirty		/* FInal dirty threshold value */
 	)
+);
+
+TRACE_EVENT(balance_dirty_pages_ratelimited,
+
+        TP_PROTO(int curr_dirtied,
+                 int curr_dirtied_pause,
+                 int ratelimit),
+
+        TP_ARGS(curr_dirtied, curr_dirtied_pause, ratelimit),
+
+        TP_STRUCT__entry(
+                __field(int, curr_dirtied)
+                __field(int, curr_dirtied_pause)
+                __field(int, ratelimit)
+        ),
+
+        TP_fast_assign(
+                __entry->curr_dirtied   	= curr_dirtied;
+                __entry->curr_dirtied_pause     = curr_dirtied_pause;
+                __entry->ratelimit    		= ratelimit;
+        ),
+
+        TP_printk("current dirtied : %d "
+                  "current dirtied pause : %d rate limit : %d",
+                  __entry->curr_dirtied,        	
+                  __entry->curr_dirtied_pause,         
+                  __entry->ratelimit
+        )
+);
+
+TRACE_EVENT(wb_do_writeback,
+
+        TP_PROTO(long wrote,
+                 long wrote_old_data,
+                 long wrote_background_data),
+
+        TP_ARGS(wrote, wrote_old_data, wrote_background_data),
+
+        TP_STRUCT__entry(
+                __field(long, wrote)
+                __field(long, wrote_old_data)
+                __field(long, wrote_background_data)
+        ),
+
+        TP_fast_assign(
+                __entry->wrote			= wrote;
+                __entry->wrote_old_data		= wrote_old_data;
+                __entry->wrote_background_data	= wrote_background_data;
+        ),
+
+        TP_printk("wrote : %ld "
+                  "wrote_old_data : %ld wrote_background_data : %ld",
+                  __entry->wrote,
+                  __entry->wrote_old_data,
+                  __entry->wrote_background_data
+        )
 );
 
 TRACE_EVENT(balance_dirty_pages,

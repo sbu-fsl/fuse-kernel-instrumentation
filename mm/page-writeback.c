@@ -288,7 +288,7 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
 	if (tsk && tsk->backing_dev_info
                         && tsk->backing_dev_info->name
                         && (strcmp(tsk->backing_dev_info->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
-		trace_global_dirty_state(background, dirty);
+		trace_global_dirty_state(background, dirty, available_memory);
 }
 
 /**
@@ -1339,6 +1339,8 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
 		*bdi_dirty = bdi_reclaimable +
 			bdi_stat(bdi, BDI_WRITEBACK);
 	}
+	if (bdi && bdi->name && (strcmp(bdi->name, "fuse") == 0))
+		trace_bdi_dirty_limits(dirty_thresh, background_thresh, *bdi_dirty, *bdi_thresh, *bdi_bg_thresh);
 }
 
 /*
@@ -1627,6 +1629,9 @@ void balance_dirty_pages_ratelimited(struct address_space *mapping)
 		current->nr_dirtied += nr_pages_dirtied;
 	}
 	preempt_enable();
+
+	if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+		trace_balance_dirty_pages_ratelimited(current->nr_dirtied, current->nr_dirtied_pause, ratelimit);
 
 	if (unlikely(current->nr_dirtied >= ratelimit))
 		balance_dirty_pages(mapping, current->nr_dirtied);
@@ -2131,7 +2136,6 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
 		trace_writeback_dirty_page(page, mapping);
 
 	if (mapping_cap_account_dirty(mapping)) {
-
 		__inc_zone_page_state(page, NR_FILE_DIRTY);
 		__inc_zone_page_state(page, NR_DIRTIED);
 		__inc_bdi_stat(bdi, BDI_RECLAIMABLE);

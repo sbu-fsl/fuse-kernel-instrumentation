@@ -1067,6 +1067,8 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 	struct backing_dev_info *bdi = wb->bdi;
 	struct wb_writeback_work *work;
 	long wrote = 0;
+	long wrote_old_data = 0;
+	long wrote_background_data = 0;
 
 	set_bit(BDI_writeback_running, &wb->bdi->state);
 	while ((work = get_next_work_item(bdi)) != NULL) {
@@ -1089,10 +1091,13 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 	/*
 	 * Check for periodic writeback, kupdated() style
 	 */
-	wrote += wb_check_old_data_flush(wb);
-	wrote += wb_check_background_flush(wb);
+	wrote_old_data += wb_check_old_data_flush(wb);
+	wrote += wrote_old_data;
+	wrote_background_data += wb_check_background_flush(wb);
+	wrote += wrote_background_data;
 	clear_bit(BDI_writeback_running, &wb->bdi->state);
-
+	if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+		trace_wb_do_writeback(wrote, wrote_old_data, wrote_background_data);
 	return wrote;
 }
 
