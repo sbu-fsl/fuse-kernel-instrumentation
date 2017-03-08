@@ -801,6 +801,8 @@ TRACE_EVENT(balance_dirty_pages_debug,
 		unsigned long dirty_thresh,
                 unsigned long bg_thresh,
 		unsigned long bdi_dirty,
+		unsigned long bdi_reclaimable,
+		unsigned long bdi_writeback,
                 unsigned long bdi_bg_thresh,
 		unsigned long bdi_thresh,
                 unsigned long bdi_dirty_ratelimit,
@@ -811,7 +813,7 @@ TRACE_EVENT(balance_dirty_pages_debug,
                 long pause,
                 int nr_dirtied_pause),
 
-        TP_ARGS(option, nr_reclaimable, nr_dirty, dirty_thresh, bg_thresh, bdi_dirty, bdi_bg_thresh, bdi_thresh, bdi_dirty_ratelimit, pos_ratio, task_ratelimit, min_pause, max_pause, pause, nr_dirtied_pause),
+        TP_ARGS(option, nr_reclaimable, nr_dirty, dirty_thresh, bg_thresh, bdi_dirty, bdi_reclaimable, bdi_writeback, bdi_bg_thresh, bdi_thresh, bdi_dirty_ratelimit, pos_ratio, task_ratelimit, min_pause, max_pause, pause, nr_dirtied_pause),
 
         TP_STRUCT__entry(
                 __field(int, option)
@@ -820,6 +822,8 @@ TRACE_EVENT(balance_dirty_pages_debug,
 		__field(unsigned long, dirty_thresh)
 		__field(unsigned long, bg_thresh)
 		__field(unsigned long, bdi_dirty)
+		__field(unsigned long, bdi_reclaimable)
+		__field(unsigned long, bdi_writeback)
 		__field(unsigned long, bdi_bg_thresh)
 		__field(unsigned long, bdi_thresh)
 		__field(unsigned long, bdi_dirty_ratelimit)
@@ -838,6 +842,8 @@ TRACE_EVENT(balance_dirty_pages_debug,
 		__entry->dirty_thresh		= dirty_thresh;
 		__entry->bg_thresh		= bg_thresh;
 		__entry->bdi_dirty		= bdi_dirty;
+		__entry->bdi_reclaimable        = bdi_reclaimable;
+		__entry->bdi_writeback          = bdi_writeback;
 		__entry->bdi_bg_thresh		= bdi_bg_thresh;
 		__entry->bdi_thresh		= bdi_thresh;
 		__entry->bdi_dirty_ratelimit	= bdi_dirty_ratelimit;
@@ -851,6 +857,7 @@ TRACE_EVENT(balance_dirty_pages_debug,
 
         TP_printk("option : %d nr_reclaimable : %lu nr_dirty : %lu "
 		  "dirty_thresh : %lu bg_thresh : %lu bdi_dirty : %lu "
+		  "bdi_reclaimable : %lu bdi_writeback : %lu "
 		  "bdi_bg_thresh : %lu bdi_thresh : %lu bdi_dirty_ratelimit : %lu "
 		  "pos_ratio : %lu task_ratelimit : %lu min_pause : %ld "
 		  "max_pause : %ld pause : %ld nr_dirtied_pause : %d ", 
@@ -860,6 +867,8 @@ TRACE_EVENT(balance_dirty_pages_debug,
 		  __entry->dirty_thresh,
 		  __entry->bg_thresh,
 		  __entry->bdi_dirty,
+		  __entry->bdi_reclaimable,
+		  __entry->bdi_writeback,
 		  __entry->bdi_bg_thresh,
        		  __entry->bdi_thresh,
 		  __entry->bdi_dirty_ratelimit,

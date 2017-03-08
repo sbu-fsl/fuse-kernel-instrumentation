@@ -1347,6 +1347,55 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
 	}
 }
 
+/* Exactly same as above, but we need more info
+ * for debugging bdi_dirty (BDI_RECLAIMABLE + BDI_WRITEBACK)
+ * passing two more extra args (bdi_reclaimable, bdi_wb) which
+ * gets updated int the foloowing func, and we use the values 
+ * in trace functions to print.
+ * */
+
+static inline void bdi_dirty_limits_helper(struct backing_dev_info *bdi,
+                                    unsigned long dirty_thresh,
+                                    unsigned long background_thresh,
+                                    unsigned long *bdi_dirty,
+				    unsigned long *bdi_reclaimable,
+				    unsigned long *bdi_writeback,
+                                    unsigned long *bdi_thresh,
+                                    unsigned long *bdi_bg_thresh)
+{
+        unsigned long bdi_reclaimable_tmp;
+        unsigned long bdi_writeback_tmp;
+
+	*bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
+
+        if (bdi_bg_thresh)
+                *bdi_bg_thresh = dirty_thresh ? div_u64((u64)*bdi_thresh *
+                                                        background_thresh,
+                                                        dirty_thresh) : 0;
+
+	if (*bdi_thresh < 2 * bdi_stat_error(bdi)) {
+                bdi_reclaimable_tmp = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
+                bdi_writeback_tmp = bdi_stat_sum(bdi, BDI_WRITEBACK);
+		*bdi_reclaimable = bdi_reclaimable_tmp;
+		*bdi_writeback	 = bdi_writeback_tmp;
+		
+                *bdi_dirty = bdi_reclaimable_tmp + bdi_writeback_tmp;
+
+                if (bdi && bdi->name && (strcmp(bdi->name, "fuse") == 0))
+                        trace_bdi_dirty_limits(1, dirty_thresh, background_thresh, *bdi_dirty, bdi_reclaimable_tmp, bdi_writeback_tmp, *bdi_thresh, *bdi_bg_thresh);
+        } else {
+                bdi_reclaimable_tmp = bdi_stat(bdi, BDI_RECLAIMABLE);
+                bdi_writeback_tmp = bdi_stat(bdi, BDI_WRITEBACK);
+		*bdi_reclaimable = bdi_reclaimable_tmp;
+                *bdi_writeback   = bdi_writeback_tmp;
+
+                *bdi_dirty = bdi_reclaimable_tmp + bdi_writeback_tmp;
+
+                if (bdi && bdi->name && (strcmp(bdi->name, "fuse") == 0))
+                        trace_bdi_dirty_limits(2, dirty_thresh, background_thresh, *bdi_dirty, bdi_reclaimable_tmp, bdi_writeback_tmp, *bdi_thresh, *bdi_bg_thresh);
+        }
+}
+
 /*
  * balance_dirty_pages() must be called by processes which are generating dirty
  * data.  It looks at the number of dirty pages in the machine and will force
@@ -1380,8 +1429,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 		unsigned long uninitialized_var(bdi_thresh);
 		unsigned long thresh;
 		unsigned long uninitialized_var(bdi_dirty);
+		unsigned long uninitialized_var(bdi_reclaimable); /* only for tracing */
+		unsigned long uninitialized_var(bdi_writeback); /* only for tracing */
 		unsigned long dirty;
 		unsigned long bg_thresh;
+		
 
 		/*
 		 * Unstable writes are a feature of certain networked
@@ -1397,9 +1449,13 @@ static void balance_dirty_pages(struct address_space *mapping,
 		global_dirty_limits(&background_thresh, &dirty_thresh);
 
 		if (unlikely(strictlimit)) {
+/*			Dirty hack plz remove....
 			bdi_dirty_limits(bdi, dirty_thresh, background_thresh,
 					 &bdi_dirty, &bdi_thresh, &bg_thresh);
-
+*/
+			bdi_dirty_limits_helper(bdi, dirty_thresh, background_thresh,
+                                         &bdi_dirty, &bdi_reclaimable, &bdi_writeback, 
+					 &bdi_thresh, &bg_thresh);
 			dirty = bdi_dirty;
 			thresh = bdi_thresh;
 		} else {
@@ -1429,7 +1485,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 			
 			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
 				trace_balance_dirty_pages_debug(1, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
-							bdi_dirty, bg_thresh, bdi_thresh, bdi->dirty_ratelimit, pos_ratio1, 0,
+							bdi_dirty, bdi_reclaimable, bdi_writeback, bg_thresh, bdi_thresh, bdi->dirty_ratelimit, pos_ratio1, 0,
 							0, 0, 0, current->nr_dirtied_pause);
 			break;
 		}
@@ -1467,7 +1523,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 			/* option 2 : Task rate limit is 0, we pasue for MAX_PAUSE */
 			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
 				trace_balance_dirty_pages_debug(2, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
-							bdi_dirty, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit, 
+							bdi_dirty, bdi_reclaimable, bdi_writeback, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit, 
 							min_pause, max_pause, pause, nr_dirtied_pause);
 			goto pause;
 		}
@@ -1507,7 +1563,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 			/* option 3 : pause calculated is less than the min pause, so we donot pause*/
 			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
 				trace_balance_dirty_pages_debug(3, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
-                                                         bdi_dirty, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit,
+                                                         bdi_dirty, bdi_reclaimable, bdi_writeback, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit,
                                                          min_pause, max_pause, 0, current->nr_dirtied_pause); /* since we don't pause so I'm printing pasue as 0 for better calculation of graphs*/
 			break;
 		}
@@ -1519,7 +1575,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 		/* Option 4 we are pausing (throttling) the task */
 		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
 			trace_balance_dirty_pages_debug(4, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
-                                                          bdi_dirty, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit,
+                                                          bdi_dirty, bdi_reclaimable, bdi_writeback, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit,
                                                           min_pause, max_pause, pause, nr_dirtied_pause);
 
 pause:
@@ -1595,7 +1651,7 @@ pause:
 		/* option 5 even though bdi dirty data is below but global dirty will be higher*/
 		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
 			trace_balance_dirty_pages_debug(5, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
-                                                      	0, 0, 0, bdi->dirty_ratelimit, 0, 0, /* The bdi values can be seen from prev. debug stmt*/
+                                                      	0, 0, 0, 0, 0, bdi->dirty_ratelimit, 0, 0, /* The bdi values can be seen from prev. debug stmt*/
                                                         0, 0, 0, current->nr_dirtied_pause);
 		bdi_start_background_writeback(bdi);
 	}
