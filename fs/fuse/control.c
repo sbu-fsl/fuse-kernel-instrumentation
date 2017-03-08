@@ -597,8 +597,8 @@ static ssize_t fuse_conn_wbc_flush_pages_ios_read(struct file *file,
 	fc = fuse_ctl_file_conn_get(file);
 	if (!fc)
 		return 0;
-	if (*ppos == 0)
-		printk("Size copied will be : %u\n", (fc->pos));
+//	if (*ppos == 0)
+//		printk("Size copied will be : %u\n", (fc->pos));
 	spin_lock(&fc->lock);
 	to_write = (fc->pos) - (*ppos);
 	if (to_write <= 0) {

@@ -422,6 +422,43 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 	)
 );
 
+TRACE_EVENT(bdi_dirty_fuselimts,
+
+	TP_PROTO(unsigned long dirty_passed,
+		 unsigned long long kernel_gave,
+		 unsigned long min_dirty,
+		 unsigned long max_dirty,
+		 unsigned long long final_dirty),
+
+	TP_ARGS(dirty_passed, kernel_gave, min_dirty, max_dirty, final_dirty),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, dirty_passed)
+		__field(unsigned long long, kernel_gave)
+		__field(unsigned long, min_dirty)
+		__field(unsigned long, max_dirty)
+		__field(unsigned long long, final_dirty)
+	),
+
+	TP_fast_assign(
+		__entry->dirty_passed	= dirty_passed;
+		__entry->kernel_gave	= kernel_gave;
+		__entry->min_dirty	= min_dirty;
+		__entry->max_dirty	= max_dirty;
+		__entry->final_dirty	= final_dirty;
+	),
+
+	TP_printk("dirty passed : %lu "
+		  "kernel value : %llu min_dirty : %lu "
+		  "max_dirty : %lu final_dirty : %llu",
+		  __entry->dirty_passed,	/* Dirty threshold passed */
+		  __entry->kernel_gave,		/* Kernel calculated value */
+		  __entry->min_dirty,		/* Min dirty threshold */
+		  __entry->max_dirty,		/* Max dirty threshold */
+		  __entry->final_dirty		/* FInal dirty threshold value */
+	)
+);
+
 TRACE_EVENT(balance_dirty_pages,
 
 	TP_PROTO(struct backing_dev_info *bdi,

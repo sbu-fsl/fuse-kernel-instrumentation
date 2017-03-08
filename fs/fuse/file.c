@@ -298,7 +298,7 @@ static int fuse_open(struct inode *inode, struct file *file)
 static int fuse_release(struct inode *inode, struct file *file)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-
+	printk("Fuse Release\n");
 	/* see fuse_vma_close() for !writeback_cache case */
 	if (fc->writeback_cache)
 		write_inode_now(inode, 1);
@@ -1925,8 +1925,8 @@ static int update_buffer_locked(struct fuse_conn *fc,
 		fc->available -= size;
 	} else {
 		fc->counter++;
-		if (!fc->buffer)
-			printk("Buffer is NULL\n");
+//		if (!fc->buffer)
+//			printk("Buffer is NULL\n");
 		fc->buffer = (char *)krealloc(fc->buffer, fc->counter * PAGE_CACHE_SIZE * sizeof(char), GFP_ATOMIC);
 		if (!fc->buffer) {
 			fc->counter--;
@@ -1955,7 +1955,7 @@ static int fuse_writepages(struct address_space *mapping,
 	struct fuse_fill_wb_data data;
 	int err,  buf_ret;
 	int num_pages;
-		
+
 	/*Will be removed*/
 /*	pgoff_t uninitialized_var(writeback_index);
         pgoff_t index;

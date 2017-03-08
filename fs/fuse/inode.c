@@ -930,7 +930,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 static void fuse_free_conn(struct fuse_conn *fc)
 {
 	if (fc->buffer) {
-		printk("Freeing the buffer\n");
+//		printk("Freeing the buffer\n");
 		kfree(fc->buffer);
 	}
 	kfree_rcu(fc, rcu);
@@ -1034,6 +1034,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 
 	fc->dev = sb->s_dev;
 	fc->sb = sb;
+	/*Initialising Backing Device Info*/
 	err = fuse_bdi_init(fc, sb);
 	if (err)
 		goto err_put_conn;

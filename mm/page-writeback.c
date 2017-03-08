@@ -537,10 +537,14 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
  * The bdi's share of dirty limit will be adapting to its throughput and
  * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
  */
+/* Edited accordingly to trace the fuse dirty threshold values (delete it afterwards) */
 unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
 {
 	u64 bdi_dirty;
 	long numerator, denominator;
+	unsigned long kernel_gave;
+	unsigned long long min_dirty;
+	unsigned long max_dirty;
 
 	/*
 	 * Calculate this BDI's share of the dirty ratio.
@@ -550,11 +554,14 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
 	bdi_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
 	bdi_dirty *= numerator;
 	do_div(bdi_dirty, denominator);
-
+	kernel_gave = bdi_dirty;
+	min_dirty = (dirty * bdi->min_ratio) / 100;
+	max_dirty = (dirty * bdi->max_ratio) / 100;
 	bdi_dirty += (dirty * bdi->min_ratio) / 100;
 	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
 		bdi_dirty = dirty * bdi->max_ratio / 100;
-
+	if (strcmp(bdi->name, "fuse") == 0)
+		trace_bdi_dirty_fuselimts(dirty, kernel_gave, min_dirty, max_dirty, bdi_dirty);
 	return bdi_dirty;
 }
 
