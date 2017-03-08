@@ -7,6 +7,28 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
+TRACE_EVENT(queue_lengths,
+
+	TP_PROTO(long long int bg_length, long long int pending_length, long long int processing_length),
+
+	TP_ARGS(bg_length, pending_length, processing_length),
+
+	TP_STRUCT__entry(
+		__field(long long int, bg_length)
+		__field(long long int, pending_length)
+		__field(long long int, processing_length)
+	),
+
+	TP_fast_assign(
+		__entry->bg_length		= bg_length;
+		__entry->pending_length		= pending_length;
+		__entry->processing_length	= processing_length;
+	),
+
+	TP_printk("BG Length : %lld Pending Length : %lld Processing Length : %lld",
+		__entry->bg_length, __entry->pending_length, __entry->processing_length)
+);
+
 TRACE_EVENT(fuse_write_begin_page_alloc_start,
 
         TP_PROTO(pgoff_t index, unsigned len),

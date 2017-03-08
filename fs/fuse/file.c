@@ -18,9 +18,7 @@
 #include <linux/falloc.h>
 #include <linux/uio.h>
 
-#define CREATE_TRACE_POINTS
 #include <trace/events/fuse.h>
-
 //static int req_count = 0; /*For tracking number of writeback FUSE_WRITE requests*/
 
 static const struct file_operations fuse_direct_io_file_operations;
@@ -2062,9 +2060,9 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 	int err = -ENOMEM;
 
 	WARN_ON(!fc->writeback_cache);
-	trace_fuse_write_begin_page_alloc_start(index, len);
+
 	page = grab_cache_page_write_begin(mapping, index, flags);
-	trace_fuse_write_begin_page_alloc_end(index, len);
+
 	if (!page)
 		goto error;
 	fuse_wait_on_page_writeback(mapping->host, page->index);

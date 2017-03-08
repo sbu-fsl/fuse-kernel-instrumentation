@@ -14,6 +14,8 @@
 #include <linux/namei.h>
 #include <linux/slab.h>
 
+#include <trace/events/fuse.h>
+
 static bool fuse_use_readdirplus(struct inode *dir, struct dir_context *ctx)
 {
 	struct fuse_conn *fc = get_fuse_conn(dir);
@@ -1797,6 +1799,10 @@ static ssize_t fuse_getxattr(struct dentry *entry, const char *name,
 		args.out.args[0].size = sizeof(outarg);
 		args.out.args[0].value = &outarg;
 	}
+	spin_lock(&fc->lock);
+	trace_queue_lengths((fc->bg_entered - fc->bg_removed), (fc->pending_entered - fc->pending_removed),
+				 (fc->processing_entered - fc->processing_removed));
+	spin_unlock(&fc->lock);
 	ret = fuse_simple_request(fc, &args);
 	if (!ret && !size)
 		ret = outarg.size;

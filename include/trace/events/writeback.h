@@ -504,35 +504,47 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 
 TRACE_EVENT(bdi_dirty_limits,
 
-	TP_PROTO(unsigned long dirty_thresh,
+	TP_PROTO(int option,
+		 unsigned long dirty_thresh,
 		 unsigned long background_thresh,
 		 unsigned long bdi_dirty,
+		 unsigned long bdi_reclaimable,
+		 unsigned long bdi_writeback,
 		 unsigned long bdi_thresh,
 		 unsigned long bdi_bg_thresh),
 
-	TP_ARGS(dirty_thresh, background_thresh, bdi_dirty, bdi_thresh, bdi_bg_thresh),
+	TP_ARGS(option, dirty_thresh, background_thresh, bdi_dirty, bdi_reclaimable, bdi_writeback, bdi_thresh, bdi_bg_thresh),
 
 	TP_STRUCT__entry(
+		__field(int, option)
 		__field(unsigned long, dirty_thresh)
 		__field(unsigned long, background_thresh)
 		__field(unsigned long, bdi_dirty)
+		__field(unsigned long, bdi_reclaimable)
+		__field(unsigned long, bdi_writeback)
 		__field(unsigned long, bdi_thresh)
 		__field(unsigned long, bdi_bg_thresh)	
 	),
 
 	TP_fast_assign(
+		__entry->option			= option;
 		__entry->dirty_thresh		= dirty_thresh;
 		__entry->background_thresh	= background_thresh;
 		__entry->bdi_dirty		= bdi_dirty;
+		__entry->bdi_reclaimable	= bdi_reclaimable;
+		__entry->bdi_writeback		= bdi_writeback;
 		__entry->bdi_thresh		= bdi_thresh;
 		__entry->bdi_bg_thresh		= bdi_bg_thresh;
 	),
 
-	TP_printk("dirty_thresh=%lu bg_thresh=%lu "
-		  "bdi_dirty=%lu bdi_thresh=%lu bdi_bg_thresh=%lu",
+	TP_printk("option=%d dirty_thresh=%lu bg_thresh=%lu "
+		  "bdi_dirty=%lu bdi_reclaimable=%lu bdi_writeback=%lu bdi_thresh=%lu bdi_bg_thresh=%lu",
+		  __entry->option,
 		  __entry->dirty_thresh,	/* Global Dirty threshold (20% of available memory) */
 		  __entry->background_thresh,	/* Global background threshold (10% of available memory) */	
 		  __entry->bdi_dirty,		/* BDI Dirty pages = BDI_RECLAIMABLE */
+		  __entry->bdi_reclaimable,
+		  __entry->bdi_writeback,
 		  __entry->bdi_thresh,		/* BDI Threshold (similar to Global Dirty Threshold) calculated using min and max ratio's of bdi*/
 		  __entry->bdi_bg_thresh	/* BDI Background Threshold (similar to Global Background Threshold) calculated : bdi_thresh*(dirty_thresh/background_thresh) */
 	)

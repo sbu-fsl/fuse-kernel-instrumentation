@@ -21,6 +21,9 @@
 #include <linux/sched.h>
 #include <linux/exportfs.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/fuse.h>
+
 MODULE_AUTHOR("Miklos Szeredi <miklos@szeredi.hu>");
 MODULE_DESCRIPTION("Filesystem in Userspace");
 MODULE_LICENSE("GPL");

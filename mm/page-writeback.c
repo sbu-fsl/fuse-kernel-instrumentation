@@ -1299,7 +1299,7 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
 				    unsigned long *bdi_bg_thresh)
 {
 	unsigned long bdi_reclaimable;
-
+	unsigned long bdi_writeback;
 	/*
 	 * bdi_thresh is not treated as some limiting factor as
 	 * dirty_thresh, due to reasons
@@ -1332,15 +1332,19 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
 	 */
 	if (*bdi_thresh < 2 * bdi_stat_error(bdi)) {
 		bdi_reclaimable = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
-		*bdi_dirty = bdi_reclaimable +
-			bdi_stat_sum(bdi, BDI_WRITEBACK);
+		bdi_writeback = bdi_stat_sum(bdi, BDI_WRITEBACK);
+		*bdi_dirty = bdi_reclaimable + bdi_writeback;
+
+		if (bdi && bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_bdi_dirty_limits(1, dirty_thresh, background_thresh, *bdi_dirty, bdi_reclaimable, bdi_writeback, *bdi_thresh, *bdi_bg_thresh);
 	} else {
 		bdi_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
-		*bdi_dirty = bdi_reclaimable +
-			bdi_stat(bdi, BDI_WRITEBACK);
+		bdi_writeback = bdi_stat(bdi, BDI_WRITEBACK);
+		*bdi_dirty = bdi_reclaimable + bdi_writeback;
+
+		if (bdi && bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_bdi_dirty_limits(2, dirty_thresh, background_thresh, *bdi_dirty, bdi_reclaimable, bdi_writeback, *bdi_thresh, *bdi_bg_thresh);
 	}
-	if (bdi && bdi->name && (strcmp(bdi->name, "fuse") == 0))
-		trace_bdi_dirty_limits(dirty_thresh, background_thresh, *bdi_dirty, *bdi_thresh, *bdi_bg_thresh);
 }
 
 /*
