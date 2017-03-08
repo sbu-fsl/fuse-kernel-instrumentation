@@ -47,6 +47,40 @@ TRACE_EVENT(fuse_write_begin_page_alloc_end,
                 __entry->index, __entry->len)
 );
 
+TRACE_EVENT(fuse_file_write_iter_begin,
+
+	TP_PROTO(unsigned long long io_count),
+
+	TP_ARGS(io_count),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long, io_count)
+	),
+
+	TP_fast_assign(
+		__entry->io_count = io_count;
+	),
+
+	TP_printk("iteration count : %llu ", __entry->io_count)
+);
+
+TRACE_EVENT(fuse_file_write_iter_end, 
+
+        TP_PROTO(unsigned long long io_count),
+
+        TP_ARGS(io_count),
+
+        TP_STRUCT__entry(
+                __field(unsigned long long, io_count)
+        ),
+
+        TP_fast_assign(
+                __entry->io_count = io_count;
+        ),
+
+        TP_printk("iteration count : %llu ", __entry->io_count)
+);
+
 TRACE_EVENT(fuse_fill_write_page_alloc_start,
 
         TP_PROTO(pgoff_t index, unsigned len),

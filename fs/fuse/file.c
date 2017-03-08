@@ -1166,19 +1166,25 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct fuse_conn *fc;
 	ssize_t err;
 	loff_t endbyte = 0;
+	unsigned long long io_counter;
 	
 	fc = get_fuse_conn(inode);
 	if (fc->writeback_cache) {
+		/*Counting No. of Iters Submitted*/
+		spin_lock(&fc->lock);
+		fc->io_count++;
+		io_counter = fc->io_count;
+		spin_unlock(&fc->lock);
+
+		trace_fuse_file_write_iter_begin(io_counter);
 		/* Update size (EOF optimization) and mode (SUID clearing) */
 		err = fuse_update_attributes(mapping->host, NULL, file, NULL);
 		if (err)
 			return err;
-		/*Counting No. of Iters Submitted*/
-		spin_lock(&fc->lock);
-		fc->io_count++;
-		spin_unlock(&fc->lock);
 		/*Done counting*/
-		return generic_file_write_iter(iocb, from);
+		written = generic_file_write_iter(iocb, from);
+		trace_fuse_file_write_iter_end(io_counter);
+		return written;
 	}
 
 	mutex_lock(&inode->i_mutex);
