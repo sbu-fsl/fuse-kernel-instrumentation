@@ -1370,6 +1370,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 	unsigned long task_ratelimit;
 	unsigned long dirty_ratelimit;
 	unsigned long pos_ratio;
+	unsigned long pos_ratio1; /* Just for plotting */
 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	bool strictlimit = bdi->capabilities & BDI_CAP_STRICTLIMIT;
 	unsigned long start_time = jiffies;
@@ -1422,9 +1423,13 @@ static void balance_dirty_pages(struct address_space *mapping,
 			current->nr_dirtied_pause =
 				dirty_poll_interval(dirty, thresh);
 			/* option 1 : BDI Dirty Data is lower than the free run, No need to pause */
+			pos_ratio1 = bdi_position_ratio(bdi, dirty_thresh,
+                                               background_thresh, nr_dirty,
+                                               bdi_thresh, bdi_dirty);
+			
 			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
 				trace_balance_dirty_pages_debug(1, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
-							bdi_dirty, bg_thresh, bdi_thresh, bdi->dirty_ratelimit, 0, 0, 
+							bdi_dirty, bg_thresh, bdi_thresh, bdi->dirty_ratelimit, pos_ratio1, 0,
 							0, 0, 0, current->nr_dirtied_pause);
 			break;
 		}
@@ -1503,7 +1508,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
 				trace_balance_dirty_pages_debug(3, nr_reclaimable, nr_dirty, dirty_thresh, background_thresh,
                                                          bdi_dirty, bg_thresh, bdi_thresh, dirty_ratelimit, pos_ratio, task_ratelimit,
-                                                         min_pause, max_pause, pause, current->nr_dirtied_pause);
+                                                         min_pause, max_pause, 0, current->nr_dirtied_pause); /* since we don't pause so I'm printing pasue as 0 for better calculation of graphs*/
 			break;
 		}
 		if (unlikely(pause > max_pause)) {
