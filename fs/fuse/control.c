@@ -72,19 +72,6 @@ static ssize_t fuse_conn_limit_read(struct file *file, char __user *buf,
         return simple_read_from_buffer(buf, len, ppos, tmp, size);
 }
 
-static ssize_t fuse_conn_limit_reads(struct file *file, char __user *buf,
-                                    size_t len, loff_t *ppos, unsigned long long int val1, 
-					unsigned long long int val2, unsigned long long int val3, 
-					unsigned long long int val4, unsigned long long int val5,
-					unsigned long long int val6, unsigned long long int val7,
-					unsigned long long int val8, unsigned long long int val9)
-{
-        char tmp[128];
-
-        size_t size = sprintf(tmp, "%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n%llu\n", val1, val2, val3, val4, val5, val6, val7, val8, val9);
-        return simple_read_from_buffer(buf, len, ppos, tmp, size);
-}
-
 /*
 static ssize_t fuse_conn_writeback_reads(struct file *file, char __user *buf,
 					size_t len, loff_t *ppos, unsigned long long int val1,
@@ -224,6 +211,7 @@ static ssize_t fuse_conn_background_queue_request_timing_read(struct file *file,
 	available += PAGE_SIZE;
 
 	spin_lock(&fc->lock);
+
 	for (i = 1; i < 46; i++) {
 		for (j = 0; j < 33; j++) {
 			size = sprintf(val, "%llu ", fc->req_type_bg[i][j]);
@@ -532,34 +520,113 @@ static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 					loff_t *ppos)
 {
 	struct fuse_conn *fc;
-	unsigned long long int bg_entered, bg_removed, bg_max, pending_entered, pending_removed, pending_max, processing_entered, processing_removed, processing_max;
+	int count, ret;
+	size_t size;
+         char val[24], *tmp = NULL;
+
+	if (*ppos != 0)
+		return 0;
 
 	fc = fuse_ctl_file_conn_get(file);
+	if (!fc)
+		return 0;
+
+	tmp = (char *)kmalloc(PAGE_SIZE * sizeof(char), GFP_KERNEL);
+	if (!tmp) {
+		fuse_conn_put(fc);
+		return -ENOMEM;
+	}
+	tmp[0] = '\0';
+	memset(val, 0, 24);
+
 	spin_lock(&fc->lock);
-	bg_entered = fc->bg_entered;
-	bg_removed = fc->bg_removed;
-	bg_max = fc->max_bg_count;
+	size = sprintf(val, "%lld\n", fc->bg_entered);
+	strcat(tmp, val);
 	fc->bg_entered = 0;
+	size = sprintf(val, "%lld\n", fc->bg_removed);
+	strcat(tmp, val);
 	fc->bg_removed = 0;
+	size = sprintf(val, "%lld\n", fc->max_bg_count);
+	strcat(tmp, val);
 	fc->max_bg_count = 0;
 
-	pending_entered = fc->pending_entered;
-	pending_removed = fc->pending_removed;
-	pending_max = fc->max_pending_count;
+	size = sprintf(val, "%lld\n", fc->pending_entered);
+	strcat(tmp, val);
 	fc->pending_entered = 0;
-	fc->pending_removed = 0;
+	size = sprintf(val, "%lld\n", fc->pending_removed);
+	strcat(tmp, val);
+	fc->pending_removed = 0;	
+	size = sprintf(val, "%lld\n", fc->max_pending_count);
+	strcat(tmp, val);
 	fc->max_pending_count = 0;
 
-	processing_entered = fc->processing_entered;
-	processing_removed = fc->processing_removed;
-	processing_max = fc->max_processing_count;
+	size = sprintf(val, "%lld\n", fc->processing_entered);
+	strcat(tmp, val);
 	fc->processing_entered = 0;
+	size = sprintf(val, "%lld\n", fc->processing_removed);
+	strcat(tmp, val);
 	fc->processing_removed = 0;
+	size = sprintf(val, "%lld\n", fc->max_processing_count);
+	strcat(tmp, val);
 	fc->max_processing_count = 0;
 
 	spin_unlock(&fc->lock);
 	fuse_conn_put(fc);
-	return fuse_conn_limit_reads(file, buf, len, ppos, bg_entered, bg_removed, bg_max, pending_entered, pending_removed, pending_max, processing_entered, processing_removed, processing_max);
+
+	count = strlen(tmp);
+	ret = copy_to_user(buf, tmp, count);
+
+	if (tmp)
+		kfree(tmp);
+
+	if (ret != 0)
+		return -EFAULT;
+
+	count -= ret;
+	*ppos = *ppos + count;
+	return count;
+}
+
+static ssize_t fuse_conn_wbc_flush_pages_ios_read(struct file *file,
+                                                   char __user *buf, size_t len,
+                                                   loff_t *ppos)
++{
+        struct fuse_conn *fc;
+	int ret = 0, to_write = 0, count;
+
+	fc = fuse_ctl_file_conn_get(file);
+	if (!fc)
+		return 0;
+	if (*ppos == 0)
+		printk("Size copied will be : %u\n", (fc->pos));
+	spin_lock(&fc->lock);
+	to_write = (fc->pos) - (*ppos);
+	if (to_write <= 0) {
+		if (fc->buffer)
+			kfree(fc->buffer);
+		fc->buffer = NULL;
+		fc->pos = 0;
+		fc->counter = 0;
+		fc->available = 0;
+		ret = 0;
+		goto wbc_flush_pages_out;
+	}
+	if (len < to_write)
+		count = len;
+	else
+		count = to_write;
+	ret = copy_to_user(buf, (fc->buffer)+(*ppos), count);
+	if (ret != 0) {
+		ret = -EFAULT;
+		goto wbc_flush_pages_out;
+	}
+	count -= ret;
+	*ppos = *ppos + count;
+	ret = count;
+wbc_flush_pages_out :
+	spin_unlock(&fc->lock);
+	fuse_conn_put(fc);
+	return ret;
 }
 
 static const struct file_operations fuse_ctl_abort_ops = {
@@ -628,6 +695,13 @@ static const struct file_operations fuse_conn_write_cache_pages_return_ops = {
 	.read = fuse_conn_write_cache_pages_return_read,
 	.write = NULL,
 	.llseek = no_llseek,
+};
+
+static const struct file_operations wbc_flush_pages_ios_ops = {
+        .open = nonseekable_open,
+        .read = fuse_conn_wbc_flush_pages_ios_read,
+        .write = NULL,
+        .llseek = no_llseek,
 };
 
 static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
@@ -711,7 +785,10 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
                                  &fuse_conn_writeback_req_sizes_ops) ||
 	    !fuse_ctl_add_dentry(parent, fc, "write_cache_pages_return",
                                  S_IFREG | 0600, 1, NULL,
-                                 &fuse_conn_write_cache_pages_return_ops))
+                                 &fuse_conn_write_cache_pages_return_ops) ||
+	    !fuse_ctl_add_dentry(parent, fc, "wbc_flush_pages_ios",
+                                 S_IFREG | 0600, 1, NULL,
+                                 &wbc_flush_pages_ios_ops))
 		goto err;
 
 	return 0;

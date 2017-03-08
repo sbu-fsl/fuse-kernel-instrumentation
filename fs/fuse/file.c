@@ -1161,15 +1161,21 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t written = 0;
 	ssize_t written_buffered = 0;
 	struct inode *inode = mapping->host;
+	struct fuse_conn *fc;
 	ssize_t err;
 	loff_t endbyte = 0;
-
-	if (get_fuse_conn(inode)->writeback_cache) {
+	
+	fc = get_fuse_conn(inode);
+	if (fc->writeback_cache) {
 		/* Update size (EOF optimization) and mode (SUID clearing) */
 		err = fuse_update_attributes(mapping->host, NULL, file, NULL);
 		if (err)
 			return err;
-
+		/*Counting No. of Iters Submitted*/
+		spin_lock(&fc->lock);
+		fc->io_count++;
+		spin_unlock(&fc->lock);
+		/*Done counting*/
 		return generic_file_write_iter(iocb, from);
 	}
 
@@ -1697,6 +1703,7 @@ struct fuse_fill_wb_data {
 	struct inode *inode;
 	struct page **orig_pages;
 	int returned; /*To track why write_cache_pages exited*/
+	long int pages_written; /*To Track How many pages were written in a single call of write_cache_pages*/
 };
 
 static void fuse_writepages_send(struct fuse_fill_wb_data *data)
@@ -1816,6 +1823,7 @@ static int fuse_writepages_fill(struct page *page,
 			fc->complete_reqs++;
 		else
 			fc->incomplete_reqs++;
+		data->pages_written += req->num_pages;
 		spin_unlock(&fc->lock);
 		fuse_writepages_send(data);
 		data->req = NULL;
@@ -1896,15 +1904,66 @@ out_unlock:
 	return err;
 }
 
+static int update_buffer_locked(struct fuse_conn *fc,
+				long int pages_flushed,
+				long long unsigned int io_count)
+{
+	size_t size;
+	char *val = NULL;
+	int err;
+
+	val = (char *)kmalloc(64*sizeof(char), GFP_ATOMIC);
+	if (!val) {
+		err = -ENOMEM;
+		goto updt_buf_out;
+	}
+	memset(val, 0, sizeof(*val));
+	size = sprintf(val, "%llu %ld\n", io_count, pages_flushed);
+	if (size <= fc->available) {
+		memcpy((fc->buffer)+(fc->pos), val, size);
+		fc->pos += size;
+		fc->available -= size;
+	} else {
+		fc->counter++;
+		if (!fc->buffer)
+			printk("Buffer is NULL\n");
+		fc->buffer = (char *)krealloc(fc->buffer, fc->counter * PAGE_CACHE_SIZE * sizeof(char), GFP_ATOMIC);
+		if (!fc->buffer) {
+			fc->counter--;
+			printk("Memory Realloc Failed\n");
+			err = -ENOMEM;
+			goto updt_buf_out;
+		}
+		fc->available += PAGE_CACHE_SIZE;
+		memset((fc->buffer) + (fc->pos), 0, fc->available);
+		memcpy((fc->buffer)+(fc->pos), val, size);
+		fc->pos += size;
+		fc->available -= size;
+	}
+	err = 0;
+updt_buf_out:
+	if (val)
+		kfree(val);
+	return err;
+}
+
 static int fuse_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_fill_wb_data data;
-	int err;
+	int err,  buf_ret;
 	int num_pages;
-	
+		
+	/*Will be removed*/
+/*	pgoff_t uninitialized_var(writeback_index);
+        pgoff_t index;
+        pgoff_t end;
+        int cycled;
+	int range_whole = 0;
+	static int count = 0; */
+
 	err = -EIO;
 	if (is_bad_inode(inode))
 		goto out;
@@ -1913,6 +1972,7 @@ static int fuse_writepages(struct address_space *mapping,
 	data.req = NULL;
 	data.ff = NULL;
 	data.returned = 0;
+	data.pages_written = 0;
 
 	err = -ENOMEM;
 	num_pages = min((int)((fc->max_write >> PAGE_SHIFT)+1), (int)FUSE_MAX_PAGES_PER_REQ);
@@ -1922,6 +1982,31 @@ static int fuse_writepages(struct address_space *mapping,
 	if (!data.orig_pages)
 		goto out;
 	
+	/*As it is values from wbc (using write_page_cache) (Remove afterwards)*/
+/*	count++;
+	printk("Iteration : %d\n", count);
+	if (wbc->range_cyclic) {
+		printk("Range cyclic\n");
+                 writeback_index = mapping->writeback_index;
+                 index = writeback_index;
+                 if (index == 0)
+                         cycled = 1;
+                 else
+                         cycled = 0;
+                 end = -1;
+         } else {
+		printk("Range is not cyclic\n");
+                 index = wbc->range_start >> PAGE_CACHE_SHIFT;
+                 end = wbc->range_end >> PAGE_CACHE_SHIFT;
+                 if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+                         range_whole = 1;
+                 cycled = 1;
+         }
+	printk("index : %lu\n", index);
+	printk("end : %lu\n", end);
+	printk("Range whole : %d\n", range_whole);
+	printk("Cycled : %d\n", cycled); */
+	/*Remove afterwords (end)*/
 	err = write_cache_pages(mapping, wbc, fuse_writepages_fill, &data);
 	if (data.req) {
 		/* Ignore errors if we can write at least one page */
@@ -1933,10 +2018,19 @@ static int fuse_writepages(struct address_space *mapping,
 			fc->complete_reqs++;
 		else
 			fc->incomplete_reqs++;
+		data.pages_written += data.req->num_pages;
+//		printk("I/O count : %llu and Pages flushed : %ld\n", fc->io_count, data.pages_written);
+		buf_ret = update_buffer_locked(fc, data.pages_written, fc->io_count);
+		if (buf_ret)
+			printk("Error in updating the buffer (Not interupting the write flow (%d)\n)", buf_ret);
 		spin_unlock(&fc->lock);
 		fuse_writepages_send(&data);
 		err = 0;
 	}
+/*	printk("Pages written in this iteration : %ld\n", data.pages_written);
+	printk("This iteration returned because of : %d\n", data.returned);
+	printk("Write back index (before closing) : %lu\n", mapping->writeback_index);
+	printk("=====================\n"); */
 	if (data.ff)
 		fuse_file_put(data.ff, false);
 
