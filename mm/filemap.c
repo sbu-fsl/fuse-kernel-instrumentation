@@ -2465,7 +2465,6 @@ again:
 			status = -EINTR;
 			break;
 		}
-
 		status = a_ops->write_begin(file, mapping, pos, bytes, flags,
 						&page, &fsdata);
 		if (unlikely(status < 0))
