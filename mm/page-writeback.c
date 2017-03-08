@@ -1831,6 +1831,16 @@ EXPORT_SYMBOL(tag_pages_for_writeback);
  * tag we set). The rule we follow is that TOWRITE tag can be cleared only
  * by the process clearing the DIRTY tag (and submitting the page for IO).
  */
+/*Tweak PLEASE REMOVE AS SOON AS POSSIBLE*/
+struct fuse_fill_wb_data {
+        struct fuse_req *req;
+        struct fuse_file *ff;
+        struct inode *inode;
+        struct page **orig_pages;
+        int returned; /*To track why write_cache_pages exited*/
+};
+
+
 int write_cache_pages(struct address_space *mapping,
 		      struct writeback_control *wbc, writepage_t writepage,
 		      void *data)
@@ -1846,7 +1856,9 @@ int write_cache_pages(struct address_space *mapping,
 	int cycled;
 	int range_whole = 0;
 	int tag;
+	struct inode *fuse_inode;
 
+	fuse_inode = mapping->host;
 	pagevec_init(&pvec, 0);
 	if (wbc->range_cyclic) {
 		writeback_index = mapping->writeback_index; /* prev offset */
@@ -1876,9 +1888,11 @@ retry:
 
 		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
 			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
-		if (nr_pages == 0)
+		if (nr_pages == 0) {
+			if (fuse_inode->i_sb->s_magic == 1702057286)
+				((struct fuse_fill_wb_data *)data)->returned = 1;
 			break;
-
+		}
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
 
@@ -1895,6 +1909,8 @@ retry:
 				 * end == -1 in that case.
 				 */
 				done = 1;
+				if (fuse_inode->i_sb->s_magic == 1702057286)
+					((struct fuse_fill_wb_data *)data)->returned = 2;
 				break;
 			}
 
@@ -1950,6 +1966,8 @@ continue_unlock:
 					 */
 					done_index = page->index + 1;
 					done = 1;
+					if (fuse_inode->i_sb->s_magic == 1702057286)
+						((struct fuse_fill_wb_data *)data)->returned = 3;
 					break;
 				}
 			}
@@ -1963,6 +1981,8 @@ continue_unlock:
 			if (--wbc->nr_to_write <= 0 &&
 			    wbc->sync_mode == WB_SYNC_NONE) {
 				done = 1;
+				if (fuse_inode->i_sb->s_magic == 1702057286)
+					((struct fuse_fill_wb_data *)data)->returned = 4;
 				break;
 			}
 		}

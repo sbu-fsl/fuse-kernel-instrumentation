@@ -1696,6 +1696,7 @@ struct fuse_fill_wb_data {
 	struct fuse_file *ff;
 	struct inode *inode;
 	struct page **orig_pages;
+	int returned; /*To track why write_cache_pages exited*/
 };
 
 static void fuse_writepages_send(struct fuse_fill_wb_data *data)
@@ -1911,6 +1912,7 @@ static int fuse_writepages(struct address_space *mapping,
 	data.inode = inode;
 	data.req = NULL;
 	data.ff = NULL;
+	data.returned = 0;
 
 	err = -ENOMEM;
 	num_pages = min((int)((fc->max_write >> PAGE_SHIFT)+1), (int)FUSE_MAX_PAGES_PER_REQ);
@@ -1925,6 +1927,7 @@ static int fuse_writepages(struct address_space *mapping,
 		/* Ignore errors if we can write at least one page */
 		BUG_ON(!data.req->num_pages);
 		spin_lock(&fc->lock);
+		fc->write_pages_returned[data.returned] += 1;
 		update_pages_req(fc, data.req->num_pages);
 		if ((data.req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_write)
 			fc->complete_reqs++;

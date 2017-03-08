@@ -34,7 +34,7 @@
 #define FUSE_NAME_MAX 1024
 
 /** Number of dentries for each connection in the control filesystem */
-#define FUSE_CTL_NUM_DENTRIES 10
+#define FUSE_CTL_NUM_DENTRIES 11
 
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
@@ -648,6 +648,7 @@ struct fuse_conn {
 	long long unsigned int complete_reqs; /*FUSE write reqs num pages equals max_writes*/
 	long long unsigned int incomplete_reqs; /*FUSE write reqs num pages not equals max_writes*/
 	long long unsigned int pages_reqs[15]; /*Pages per write Request distributions*/
+	long long unsigned int write_pages_returned[5]; /*To track why write_cache_pages returned*/
 };
 
 static inline struct fuse_conn *get_fuse_conn_super(struct super_block *sb)

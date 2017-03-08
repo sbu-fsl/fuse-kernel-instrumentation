@@ -472,6 +472,49 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 	return count;
 }
 
+static ssize_t fuse_conn_write_cache_pages_return_read(struct file *file,
+                                                char __user *buf, size_t len,
+                                                loff_t *ppos)
+{
+	struct fuse_conn *fc;
+	int i, count, ret;
+	size_t size;
+	char val[24], *tmp = NULL;
+
+	if (*ppos != 0)
+		return 0;
+
+	fc = fuse_ctl_file_conn_get(file);
+	if (!fc)
+		return 0;
+
+         tmp = (char *)kmalloc(PAGE_SIZE * sizeof(char), GFP_KERNEL);
+         if (!tmp) {
+                 fuse_conn_pute(fc);
+                 retunr -ENOMEM;
+         }
+         temp[0] = '\0';
+         memset(val, 0, 24);
+
+         spin_lock(&fc->lock);
+         for (i = 0; i < 5; i++) {
+                 size = sprintf(val, "%llu\n", fc->write_pages_returned[i]);
+                 strcat(tmp, val);
+         }
+         spin_unlock(&fc->lock);
+         fuse_conn_put(fc);
+
+         count = strlen(tmp);
+         ret = copy_to_user(buf, tmp, count);
+         if (tmp)
+                 kfree(tmp);
+         if (ret != 0)
+                 return -EFAULT;
+         count -= ret;
+         *ppos = *ppos + count;
+         return count;
+}
+
 /*
 static unsigned long long int list_count(struct list_head *head) {
 	struct list_head *pln;
@@ -490,7 +533,7 @@ static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 {
 	struct fuse_conn *fc;
 	unsigned long long int bg_entered, bg_removed, bg_max, pending_entered, pending_removed, pending_max, processing_entered, processing_removed, processing_max;
-		
+
 	fc = fuse_ctl_file_conn_get(file);
 	spin_lock(&fc->lock);
 	bg_entered = fc->bg_entered;
@@ -580,6 +623,13 @@ static const struct file_operations fuse_conn_writeback_req_sizes_ops = {
         .llseek = no_llseek,
 };
 
+static const struct file_operations fuse_conn_write_cache_pages_return_ops = {
+	.open = nonseekable_open,
+	.read = fuse_conn_write_cache_pages_return_read,
+	.write = NULL,
+	.llseek = no_llseek,
+};
+
 static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 					  struct fuse_conn *fc,
 					  const char *name,
@@ -658,7 +708,10 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
                                  &fuse_conn_queue_lengths_ops) ||
 	    !fuse_ctl_add_dentry(parent, fc, "writeback_req_sizes",
                                  S_IFREG | 0600, 1, NULL,
-                                 &fuse_conn_writeback_req_sizes_ops))
+                                 &fuse_conn_writeback_req_sizes_ops) ||
+	    !fuse_ctl_add_dentry(parent, fc, "write_cache_pages_return",
+                                 S_IFREG | 0600, 1, NULL,
+                                 &fuse_conn_write_cache_pages_return_ops))
 		goto err;
 
 	return 0;
