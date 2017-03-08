@@ -1416,6 +1416,8 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 	req = list_entry(fc->pending.next, struct fuse_req, list);
 	req->state = FUSE_REQ_READING;
 	list_move(&req->list, &fc->io);
+	//if (req->in.h.opcode == FUSE_READ) /* trace only read requests*/
+	//	trace_fuse_dev_read_start(req->in.h.nodeid);
 
 	in = &req->in;
 	reqsize = in->h.len;
@@ -1485,6 +1487,7 @@ static ssize_t fuse_dev_read(struct kiocb *iocb, struct iov_iter *to)
 	struct fuse_copy_state cs;
 	struct file *file = iocb->ki_filp;
 	struct fuse_conn *fc = fuse_get_conn(file);
+
 	if (!fc)
 		return -EPERM;
 
@@ -2078,6 +2081,10 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 			err = -ENOENT;
 	} else if (!req->aborted)
 		req->out.h.error = -EIO;
+
+	//if (req->in.h.opcode == FUSE_READ)
+	//	trace_fuse_dev_write_end(req->in.h.nodeid);
+
 	request_end(fc, req);
 
 	return err ? err : nbytes;
@@ -2093,6 +2100,8 @@ static ssize_t fuse_dev_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct fuse_copy_state cs;
 	struct fuse_conn *fc = fuse_get_conn(iocb->ki_filp);
+	ssize_t ret;
+
 	if (!fc)
 		return -EPERM;
 
@@ -2101,7 +2110,8 @@ static ssize_t fuse_dev_write(struct kiocb *iocb, struct iov_iter *from)
 
 	fuse_copy_init(&cs, fc, 0, from);
 
-	return fuse_dev_do_write(fc, &cs, iov_iter_count(from));
+	ret =  fuse_dev_do_write(fc, &cs, iov_iter_count(from));
+	return ret;
 }
 
 static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,

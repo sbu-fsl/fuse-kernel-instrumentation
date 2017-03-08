@@ -21,6 +21,9 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/vfs.h>
+
 typedef ssize_t (*io_fn_t)(struct file *, char __user *, size_t, loff_t *);
 typedef ssize_t (*iter_fn_t)(struct kiocb *, struct iov_iter *);
 
@@ -437,9 +440,100 @@ ssize_t __vfs_read(struct file *file, char __user *buf, size_t count,
 }
 EXPORT_SYMBOL(__vfs_read);
 
+/*
+ * Hack to print the details of FUSE inode as this is how we can map the traces with user space and kernel
+ * */
+
+struct fuse_forget_one {
+	uint64_t        nodeid;
+	uint64_t        nlookup;
+};
+
+/* One forget request */
+struct fuse_forget_link {
+        struct fuse_forget_one forget_one;
+        struct fuse_forget_link *next;
+};
+
+/** FUSE inode */
+struct fuse_inode {
+        /** Inode data */
+        struct inode inode;
+
+        /** Unique ID, which identifies the inode between userspace
+ *          * and kernel */
+        u64 nodeid;
+
+        /** Number of lookups on this inode */
+        u64 nlookup;
+
+        /** The request used for sending the FORGET message */
+        struct fuse_forget_link *forget;
+
+        /** Time in jiffies until the file attributes are valid */
+        u64 i_time;
+
+        /** The sticky bit in inode->i_mode may have been removed, so
+ *             preserve the original mode */
+        umode_t orig_i_mode;
+
+        /** 64 bit inode number */
+        u64 orig_ino;
+
+        /** Version of last attribute change */
+        u64 attr_version;
+
+        /** Files usable in writepage.  Protected by fc->lock */
+        struct list_head write_files;
+
+        /** Writepages pending on truncate or fsync */
+        struct list_head queued_writes;
+
+        /** Number of sent writes, a negative bias (FUSE_NOWRITE)
+ *          * means more writes are blocked */
+        int writectr;
+
+        /** Waitq for writepage completion */
+        wait_queue_head_t page_waitq;
+
+        /** List of writepage requestst (pending or sent) */
+        struct list_head writepages;
+
+        /** Miscellaneous bits describing inode state */
+        unsigned long state;
+};
+
+static inline struct fuse_inode *get_fuse_inode(struct inode *inode)
+{
+        return container_of(inode, struct fuse_inode, inode);
+}
+
+static inline u64 get_node_id(struct inode *inode)
+{
+        return get_fuse_inode(inode)->nodeid;
+}
+
+/*
+ * Please remove the above hack (unneccessary code)
+ * */
+
 ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 {
 	ssize_t ret;
+	int fuse_inode; /* confirming whether the inode belongs to FUSE or not */
+	struct inode *inode;
+	unsigned long long int nodeid = 0;
+
+	fuse_inode = 0;
+	inode = file->f_inode;
+	/* profile point 1 (inode specific and only incase of FUSE) */
+	if (inode && (inode->i_sb->s_magic == 1702057286))
+		fuse_inode = 1; /* inode belongs to fuse */
+
+	if (fuse_inode) {
+		nodeid = get_node_id(inode);
+		trace_vfs_read_start(nodeid);
+	}
 
 	if (!(file->f_mode & FMODE_READ))
 		return -EBADF;
@@ -458,6 +552,10 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 		}
 		inc_syscr(current);
 	}
+
+	/* profile point 8 (inode specific and only incase of FUSE) */
+	if (fuse_inode)
+		trace_vfs_read_end(nodeid);
 
 	return ret;
 }

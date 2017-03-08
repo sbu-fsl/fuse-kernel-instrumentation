@@ -48,6 +48,92 @@ TRACE_EVENT(fuse_read_difference,
 	TP_printk("Fuse Read on inode : %llu time diff : %ld", __entry->inode, __entry->time_diff)
 );
 
+
+TRACE_EVENT(fuse_read_iter_start,
+
+	TP_PROTO(unsigned long long int inode),
+
+	TP_ARGS(inode),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+	),
+
+	TP_printk("Fuse Read Iter start on inode : %llu", __entry->inode)
+);
+
+TRACE_EVENT(fuse_read_iter_end,
+
+	TP_PROTO(unsigned long long int inode),
+
+	TP_ARGS(inode),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+	),
+
+	TP_printk("Fuse Read Iter end on inode : %llu", __entry->inode)
+);
+
+TRACE_EVENT(fuse_dev_read_start,
+
+	TP_PROTO(unsigned long long int inode),
+
+	TP_ARGS(inode),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+	),
+
+	TP_printk("Fuse Dev Read start on inode : %llu", __entry->inode)
+);
+
+TRACE_EVENT(fuse_dev_write_end,
+
+	TP_PROTO(unsigned long long int inode),
+
+	TP_ARGS(inode),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+	),
+
+	TP_printk("Fuse Dev Write end on inode : %llu", __entry->inode)
+);
+
+TRACE_EVENT(fuse_read_request_create,
+
+	TP_PROTO(unsigned long long int inode),
+
+	TP_ARGS(inode),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long int, inode)
+	),
+
+	TP_fast_assign(
+		__entry->inode		= inode;
+	),
+
+	TP_printk("Fuse Read Request created on inode : %llu", __entry->inode)
+);
+
 TRACE_EVENT(bg_queue_difference,
 
 	TP_PROTO(unsigned long long int inode, long int time_diff),
