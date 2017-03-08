@@ -934,10 +934,12 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 
 static void fuse_free_conn(struct fuse_conn *fc)
 {
+/*
 	if (fc->buffer) {
 //		printk("Freeing the buffer\n");
 		kfree(fc->buffer);
 	}
+*/
 	kfree_rcu(fc, rcu);
 }
 
@@ -1110,8 +1112,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
  err_put_root:
 	dput(root_dentry);
  err_put_conn:
-	if (fc->buffer) /*For tracking*/
-		kfree(fc->buffer);
+//	if (fc->buffer) /*For tracking*/
+//		kfree(fc->buffer);
 	fuse_bdi_destroy(fc);
 	fuse_conn_put(fc);
  err_fput:

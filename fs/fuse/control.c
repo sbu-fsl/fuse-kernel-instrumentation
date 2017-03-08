@@ -478,6 +478,7 @@ static ssize_t fuse_conn_writeback_req_sizes_read(struct file *file,
 	return count;
 }
 
+
 static ssize_t fuse_conn_write_cache_pages_return_read(struct file *file,
                                                 char __user *buf, size_t len,
                                                 loff_t *ppos)
@@ -531,7 +532,6 @@ static unsigned long long int list_count(struct list_head *head) {
 	}
 	return numItems;
 }
-*/
 
 static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 					char __user *buf, size_t len,
@@ -605,6 +605,7 @@ static ssize_t fuse_conn_queue_lengths_read(struct file *file,
 	return count;
 }
 
+
 static ssize_t fuse_conn_wbc_flush_pages_ios_read(struct file *file,
                                                    char __user *buf, size_t len,
                                                    loff_t *ppos)
@@ -646,6 +647,7 @@ wbc_flush_pages_out :
 	fuse_conn_put(fc);
 	return ret;
 }
+*/
 
 static const struct file_operations fuse_ctl_abort_ops = {
 	.open = nonseekable_open,
@@ -694,12 +696,14 @@ static const struct file_operations fuse_conn_processing_queue_requests_timings_
         .llseek = no_llseek,
 };
 
+/*
 static const struct file_operations fuse_conn_queue_lengths_ops = {
         .open = nonseekable_open,
         .read = fuse_conn_queue_lengths_read,
         .write = NULL,
         .llseek = no_llseek,
 };
+*/
 
 static const struct file_operations fuse_conn_writeback_req_sizes_ops = {
         .open = nonseekable_open,
@@ -708,20 +712,22 @@ static const struct file_operations fuse_conn_writeback_req_sizes_ops = {
         .llseek = no_llseek,
 };
 
+/*
 static const struct file_operations fuse_conn_write_cache_pages_return_ops = {
 	.open = nonseekable_open,
 	.read = fuse_conn_write_cache_pages_return_read,
 	.write = NULL,
 	.llseek = no_llseek,
 };
-
+*/
+/*
 static const struct file_operations wbc_flush_pages_ios_ops = {
         .open = nonseekable_open,
         .read = fuse_conn_wbc_flush_pages_ios_read,
         .write = NULL,
         .llseek = no_llseek,
 };
-
+*/
 static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 					  struct fuse_conn *fc,
 					  const char *name,
@@ -795,18 +801,18 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 	    !fuse_ctl_add_dentry(parent, fc, "processing_queue_requests_timings",
                                  S_IFREG | 0600, 1, NULL,
                                  &fuse_conn_processing_queue_requests_timings_ops) ||
-	    !fuse_ctl_add_dentry(parent, fc, "queue_lengths",
-                                 S_IFREG | 0600, 1, NULL,
-                                 &fuse_conn_queue_lengths_ops) ||
+//	    !fuse_ctl_add_dentry(parent, fc, "queue_lengths",
+//                                 S_IFREG | 0600, 1, NULL,
+//                                 &fuse_conn_queue_lengths_ops) ||
 	    !fuse_ctl_add_dentry(parent, fc, "writeback_req_sizes",
                                  S_IFREG | 0600, 1, NULL,
-                                 &fuse_conn_writeback_req_sizes_ops) ||
-	    !fuse_ctl_add_dentry(parent, fc, "write_cache_pages_return",
-                                 S_IFREG | 0600, 1, NULL,
-                                 &fuse_conn_write_cache_pages_return_ops) ||
-	    !fuse_ctl_add_dentry(parent, fc, "wbc_flush_pages_ios",
-                                 S_IFREG | 0600, 1, NULL,
-                                 &wbc_flush_pages_ios_ops))
+                                 &fuse_conn_writeback_req_sizes_ops))
+//	    !fuse_ctl_add_dentry(parent, fc, "write_cache_pages_return",
+//                                 S_IFREG | 0600, 1, NULL,
+//                                 &fuse_conn_write_cache_pages_return_ops) ||
+//	    !fuse_ctl_add_dentry(parent, fc, "wbc_flush_pages_ios",
+//                                 S_IFREG | 0600, 1, NULL,
+//                                 &wbc_flush_pages_ios_ops))
 		goto err;
 
 	return 0;

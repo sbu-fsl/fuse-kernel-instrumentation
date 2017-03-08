@@ -86,6 +86,109 @@ TRACE_EVENT(fuse_file_write_iter_begin,
 	TP_printk("iteration count : %llu ", __entry->io_count)
 );
 
+
+TRACE_EVENT(fuse_file_write_pages_begin,
+
+	TP_PROTO(unsigned long long dummy),
+
+	TP_ARGS(dummy),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long, dummy)
+	),
+
+	TP_fast_assign(
+		__entry->dummy = dummy;
+	),
+
+	TP_printk("Fuse write pages begin : %llu(dummy)", __entry->dummy)
+);
+
+TRACE_EVENT(fuse_file_write_pages_flush_amount,
+
+	TP_PROTO(unsigned num_pages),
+
+	TP_ARGS(num_pages),
+
+	TP_STRUCT__entry(
+		__field(unsigned, num_pages)
+	),
+
+	TP_fast_assign(
+		__entry->num_pages = num_pages;
+	),
+
+	TP_printk("Pages packed in single Write Request : %u", __entry->num_pages)
+);
+
+TRACE_EVENT(fuse_file_write_pages_end,
+
+	TP_PROTO(unsigned long long dummy),
+
+	TP_ARGS(dummy),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long, dummy)
+	),
+
+	TP_fast_assign(
+		__entry->dummy = dummy;
+	),
+
+	TP_printk("Fuse write pages end : %llu(dummy)", __entry->dummy)
+);
+
+TRACE_EVENT(fuse_file_read_pages_begin,
+
+	TP_PROTO(unsigned long long dummy),
+
+	TP_ARGS(dummy),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long, dummy)
+	),
+
+	TP_fast_assign(
+		__entry->dummy = dummy;
+	),
+
+	TP_printk("Fuse read pages begin : %llu(dummy)", __entry->dummy)
+);
+
+TRACE_EVENT(fuse_file_read_pages_req_amount,
+
+	TP_PROTO(unsigned num_pages),
+
+	TP_ARGS(num_pages),
+
+	TP_STRUCT__entry(
+		__field(unsigned, num_pages)
+	),
+
+	TP_fast_assign(
+		__entry->num_pages = num_pages;
+	),
+
+	TP_printk("Pages packed in single Read Request : %u", __entry->num_pages)
+);
+
+TRACE_EVENT(fuse_file_read_pages_end,
+
+	TP_PROTO(unsigned long long dummy),
+
+	TP_ARGS(dummy),
+
+	TP_STRUCT__entry(
+		__field(unsigned long long, dummy)
+	),
+
+	TP_fast_assign(
+		__entry->dummy = dummy;
+	),
+
+	TP_printk("Fuse read pages end : %llu(dummy)", __entry->dummy)
+);
+
 TRACE_EVENT(fuse_file_write_iter_end, 
 
         TP_PROTO(unsigned long long io_count),

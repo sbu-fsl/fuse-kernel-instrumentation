@@ -24,8 +24,8 @@
 #include <linux/workqueue.h>
 
 /** Max number of pages that can be used in a single read request */
-/*#define FUSE_MAX_PAGES_PER_REQ 32*/
-#define FUSE_MAX_PAGES_PER_REQ 16384
+#define FUSE_MAX_PAGES_PER_REQ 32
+/*#define FUSE_MAX_PAGES_PER_REQ 16384*/
 
 /** Bias for fi->writectr, meaning new writepages must not be sent */
 #define FUSE_NOWRITE INT_MIN
@@ -34,7 +34,7 @@
 #define FUSE_NAME_MAX 1024
 
 /** Number of dentries for each connection in the control filesystem */
-#define FUSE_CTL_NUM_DENTRIES 12
+#define FUSE_CTL_NUM_DENTRIES 9
 
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
@@ -625,20 +625,22 @@ struct fuse_conn {
 
 	/*Using the starting spin lock to protect the following*/
 	/*For tracking the background queue length*/
+/*
 	long long int bg_entered;
 	long long int bg_removed;
-	long long int max_bg_count;
+	long long int max_bg_count; 
+*/
 
 	/*For tracking the pending queue length*/
-	long long int pending_entered;
+/*	long long int pending_entered;
 	long long int pending_removed;
 	long long int max_pending_count;
-
+*/
 	/*For tracking the processing queue length*/
-	long long int processing_entered;
+/*	long long int processing_entered;
 	long long int processing_removed;
 	long long int max_processing_count;
-
+*/
 	/*For tracking the requests and their timings*/
 	long long unsigned int req_type_bg[46][33];
 	long long unsigned int req_type_pending[46][33];
@@ -648,12 +650,12 @@ struct fuse_conn {
 	long long unsigned int complete_reqs; /*FUSE write reqs num pages equals max_writes*/
 	long long unsigned int incomplete_reqs; /*FUSE write reqs num pages not equals max_writes*/
 	long long unsigned int pages_reqs[15]; /*Pages per write Request distributions*/
-	long long unsigned int write_pages_returned[5]; /*To track why write_cache_pages returned*/
+//	long long unsigned int write_pages_returned[5]; /*To track why write_cache_pages returned*/
 
-	char *buffer; /*To track the I/O's submitted and pages flushed*/
-	unsigned counter; /*To track the size allocated for the above buffer*/
-	unsigned available; /*To track size available in the above buffer to copy new data*/
-	unsigned pos; /*keep tracking the position on buffer for copying (memcpy)*/
+//	char *buffer; /*To track the I/O's submitted and pages flushed*/
+//	unsigned counter; /*To track the size allocated for the above buffer*/
+//	unsigned available; /*To track size available in the above buffer to copy new data*/
+//	unsigned pos; /*keep tracking the position on buffer for copying (memcpy)*/
 
 	long long unsigned int io_count; /*To track number of I/O's submitted*/
 };
