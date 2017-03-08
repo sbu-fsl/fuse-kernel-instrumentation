@@ -285,7 +285,10 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
 	}
 	*pbackground = background;
 	*pdirty = dirty;
-	trace_global_dirty_state(background, dirty);
+	if (tsk && tsk->backing_dev_info
+                        && tsk->backing_dev_info->name
+                        && (strcmp(tsk->backing_dev_info->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
+		trace_global_dirty_state(background, dirty);
 }
 
 /**
@@ -560,7 +563,7 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
 	bdi_dirty += (dirty * bdi->min_ratio) / 100;
 	if (bdi_dirty > (dirty * bdi->max_ratio) / 100)
 		bdi_dirty = dirty * bdi->max_ratio / 100;
-	if (strcmp(bdi->name, "fuse") == 0)
+	if (bdi->name && (strcmp(bdi->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
 		trace_bdi_dirty_fuselimts(dirty, kernel_gave, min_dirty, max_dirty, bdi_dirty);
 	return bdi_dirty;
 }
@@ -1458,18 +1461,19 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 * do a reset, as it may be a light dirtier.
 		 */
 		if (pause < min_pause) {
-			trace_balance_dirty_pages(bdi,
-						  dirty_thresh,
-						  background_thresh,
-						  nr_dirty,
-						  bdi_thresh,
-						  bdi_dirty,
-						  dirty_ratelimit,
-						  task_ratelimit,
-						  pages_dirtied,
-						  period,
-						  min(pause, 0L),
-						  start_time);
+			if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+				trace_balance_dirty_pages(bdi,
+						  	  dirty_thresh,
+							  background_thresh,
+							  nr_dirty,
+							  bdi_thresh,
+							  bdi_dirty,
+							  dirty_ratelimit,
+							  task_ratelimit,
+							  pages_dirtied,
+							  period,
+							  min(pause, 0L),
+							  start_time);
 			if (pause < -HZ) {
 				current->dirty_paused_when = now;
 				current->nr_dirtied = 0;
@@ -1487,18 +1491,19 @@ static void balance_dirty_pages(struct address_space *mapping,
 		}
 
 pause:
-		trace_balance_dirty_pages(bdi,
-					  dirty_thresh,
-					  background_thresh,
-					  nr_dirty,
-					  bdi_thresh,
-					  bdi_dirty,
-					  dirty_ratelimit,
-					  task_ratelimit,
-					  pages_dirtied,
-					  period,
-					  pause,
-					  start_time);
+		if (bdi->name && (strcmp(bdi->name, "fuse") == 0))
+			trace_balance_dirty_pages(bdi,
+						  dirty_thresh,
+						  background_thresh,
+						  nr_dirty,
+						  bdi_thresh,
+						  bdi_dirty,
+						  dirty_ratelimit,
+						  task_ratelimit,
+						  pages_dirtied,
+						  period,
+						  pause,
+						  start_time);
 		__set_current_state(TASK_KILLABLE);
 		io_schedule_timeout(pause);
 
@@ -1954,8 +1959,8 @@ continue_unlock:
 			BUG_ON(PageWriteback(page));
 			if (!clear_page_dirty_for_io(page))
 				goto continue_unlock;
-
-			trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
+			if (fuse_inode->i_sb->s_magic == 1702057286) /*Trace only FUSE flow (remove)*/
+				trace_wbc_writepage(wbc, inode_to_bdi(mapping->host));
 			ret = (*writepage)(page, wbc, data);
 			if (unlikely(ret)) {
 				if (ret == AOP_WRITEPAGE_ACTIVATE) {
@@ -2121,10 +2126,11 @@ int __set_page_dirty_no_writeback(struct page *page)
  */
 void account_page_dirtied(struct page *page, struct address_space *mapping)
 {
-	trace_writeback_dirty_page(page, mapping);
+	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+	if (bdi->name && (strcmp(bdi->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
+		trace_writeback_dirty_page(page, mapping);
 
 	if (mapping_cap_account_dirty(mapping)) {
-		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 
 		__inc_zone_page_state(page, NR_FILE_DIRTY);
 		__inc_zone_page_state(page, NR_DIRTIED);

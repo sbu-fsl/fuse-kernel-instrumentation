@@ -320,8 +320,8 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 	spin_lock_bh(&bdi_lock);
 	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
 	spin_unlock_bh(&bdi_lock);
-
-	trace_writeback_bdi_register(bdi);
+	if (bdi->name && (strcmp(bdi->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
+		trace_writeback_bdi_register(bdi);
 	return 0;
 }
 EXPORT_SYMBOL(bdi_register);
@@ -517,9 +517,11 @@ long congestion_wait(int sync, long timeout)
 	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
 	ret = io_schedule_timeout(timeout);
 	finish_wait(wqh, &wait);
-
-	trace_writeback_congestion_wait(jiffies_to_usecs(timeout),
-					jiffies_to_usecs(jiffies - start));
+	if (current && current->backing_dev_info
+                        && current->backing_dev_info->name
+                        && (strcmp(current->backing_dev_info->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
+		trace_writeback_congestion_wait(jiffies_to_usecs(timeout),
+						jiffies_to_usecs(jiffies - start));
 
 	return ret;
 }
@@ -573,8 +575,11 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout)
 	finish_wait(wqh, &wait);
 
 out:
-	trace_writeback_wait_iff_congested(jiffies_to_usecs(timeout),
-					jiffies_to_usecs(jiffies - start));
+	if (current && current->backing_dev_info
+			&& current->backing_dev_info->name 
+			&& (strcmp(current->backing_dev_info->name, "fuse") == 0)) /*Trace only FUSE flow (remove)*/
+		trace_writeback_wait_iff_congested(jiffies_to_usecs(timeout),
+						jiffies_to_usecs(jiffies - start));
 
 	return ret;
 }
