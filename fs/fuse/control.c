@@ -122,6 +122,24 @@ static ssize_t fuse_conn_max_background_read(struct file *file,
 		return 0;
 
 	val = fc->max_background;
+
+	/* Printing the values of cmmd line arguments */
+	printk("max_write : %u\n", fc->max_write);
+	printk("max_readahead : %lu\n", fc->bdi.ra_pages);
+	printk("max_background : %u\n", fc->max_background);
+	printk("congestion threshold : %u\n", fc->congestion_threshold);
+	printk("async_read : %u\n", fc->async_read);
+	printk("atomic_open_truncate : %u\n", fc->atomic_o_trunc);
+	printk("big_writes : %u\n", fc->big_writes);
+	printk("no_posix_lock : %u\n", fc->no_lock);
+	printk("no_flock : %u\n", fc->no_flock);
+	printk("Splice is supported by Kernel\n");
+	printk("auto_inval_data : %u\n", fc->auto_inval_data);
+	printk("do_readdirplus : %u\n", fc->do_readdirplus);
+	printk("readdirplus_auto : %u\n", fc->readdirplus_auto);
+	printk("async_dio : %u\n", fc->async_dio);
+	printk("writeback_cache : %u\n", fc->writeback_cache);
+	printk("time_gran : %u\n", fc->sb->s_time_gran);
 	fuse_conn_put(fc);
 
 	return fuse_conn_limit_read(file, buf, len, ppos, val);
